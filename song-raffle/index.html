@@ -177,7 +177,8 @@ textarea { min-height: 84px; resize: vertical; }
       <h2 id="membersTitle">חברי הקבוצה <small id="memberCount"></small></h2>
       <p class="hint">
         ייבוא מוואטסאפ: בקבוצה ← ⋮ / שם הקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”, ואז לבחור כאן את קובץ ה‑txt (או zip שחולץ).
-        האפליקציה אוספת את כל מי שכתב או הצטרף לקבוצה. הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת השיר של אותו חבר.
+        האפליקציה אוספת את כל מי שכתב או הצטרף לקבוצה. הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת השיר של אותו חבר, והודעה שמתחילה ב‑<b>שם:</b> קובעת את השם שיוצג על המסך.
+        מי שלא שמור אצלכם באנשי הקשר מופיע בייצוא כמספר טלפון, ועל המסך יוצגו רק 4 הספרות האחרונות.
       </p>
       <label class="hint" for="inviteInput">לינק ההזמנה לקבוצה (פרטי הקבוצה ← הזמנה באמצעות קישור ← העתקה). המשחק יציג ממנו QR על הבמה:</label>
       <form class="invite-form" id="inviteForm">
@@ -248,16 +249,21 @@ textarea { min-height: 84px; resize: vertical; }
   const PREFIX = /^\[?\d{1,4}[./-]\d{1,2}[./-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[APap]\.?[Mm]\.?)?\]?\s*(?:[-–]\s*)?/;
   const SELF = new Set(["you", "את/ה", "אתה", "את", "אני"]);
   const SONG_RE = /^(?:שיר|song)\s*[:\-–]\s*(.+)$/i;
+  const NAME_RE = /^(?:שם|name)\s*[:\-–]\s*(.+)$/i;
+  // Audience members who aren't in your contacts show up as phone numbers: never put a full number on the big screen.
+  const maskPhone = (s) => /^\+?[\d\s\-()]{7,}$/.test(s) ? "מספר המסתיים ב‑" + s.replace(/\D/g, "").slice(-4) : s;
 
-  const cleanName = (s) => s.replace(BIDI, "").replace(/^~\s*/, "").trim();
+  const cleanName = (s) => s.replace(BIDI, "").replace(/[‐-―−]/g, "-").replace(/[  ]/g, " ").replace(/^~\s*/, "").trim();
 
   function parseChat(text) {
-    const found = new Map(); // name -> song
-    const add = (raw, song) => {
-      const name = cleanName(raw);
-      if (!name || name.length > 40 || SELF.has(name.toLowerCase())) return;
-      if (!found.has(name)) found.set(name, "");
-      if (song) found.set(name, song.trim().slice(0, 80));
+    const found = new Map(); // sender as exported -> { name, song }
+    const add = (raw, song, nick) => {
+      const id = cleanName(raw);
+      if (!id || id.length > 40 || SELF.has(id.toLowerCase())) return;
+      if (!found.has(id)) found.set(id, { name: maskPhone(id), song: "" });
+      const f = found.get(id);
+      if (song) f.song = song.trim().slice(0, 80);
+      if (nick) f.name = nick.trim().slice(0, 30);
     };
     for (let line of text.split(/\r?\n/)) {
       line = line.replace(BIDI, "");
@@ -267,8 +273,8 @@ textarea { min-height: 84px; resize: vertical; }
       const colon = rest.indexOf(": ");
       if (colon > 0) {
         const msg = rest.slice(colon + 2).trim();
-        const sm = msg.match(SONG_RE);
-        add(rest.slice(0, colon), sm ? sm[1] : "");
+        const sm = msg.match(SONG_RE), nm = msg.match(NAME_RE);
+        add(rest.slice(0, colon), sm ? sm[1] : "", nm ? nm[1] : "");
         continue;
       }
       // System lines: joins and adds.
@@ -283,10 +289,13 @@ textarea { min-height: 84px; resize: vertical; }
   function mergePeople(map) {
     if (state.sample) { state.people = []; state.history = []; state.sample = false; }
     let added = 0;
-    for (const [name, song] of map) {
-      const existing = state.people.find((p) => p.name === name);
-      if (existing) { if (song) existing.song = song; }
-      else { state.people.push({ name, song, active: true }); added++; }
+    for (const [id, { name, song }] of map) {
+      const existing = state.people.find((p) => (p.id || p.name) === id);
+      if (existing) {
+        state.history.forEach((h) => { if (h.name === existing.name) h.name = name; });
+        existing.name = name;
+        if (song) existing.song = song;
+      } else { state.people.push({ id, name, song, active: true }); added++; }
     }
     return added;
   }
@@ -492,7 +501,7 @@ textarea { min-height: 84px; resize: vertical; }
     for (const line of $("addInput").value.split(/\r?\n/)) {
       const [name, ...song] = line.split(/\s+[-–]\s+/);
       const n = cleanName(name || "");
-      if (n) map.set(n, song.join(" - ").trim());
+      if (n) map.set(n, { name: n, song: song.join(" - ").trim() });
     }
     if (!map.size) return;
     const added = mergePeople(map);
