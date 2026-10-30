@@ -1,7 +1,8 @@
 /**
- * Creates the sign-up form for the song raffle, its responses spreadsheet,
- * and a "במה" tab holding only name + song (that tab is what the raffle reads;
- * phone numbers stay in the private responses tab).
+ * Creates the sign-up form for the show (consent, name, song, and a 10-question
+ * Beatles quiz answered on the phone), its responses spreadsheet, and a "במה" tab
+ * that gets name + song + quiz score on every submission. The raffle reads only
+ * that tab; phone numbers stay in the private responses tab.
  *
  * How to run: script.google.com → New project → paste this file → fill in the
  * settings below → Run "createSongRaffleForm" → approve access → copy the links
@@ -76,6 +77,20 @@ const SONGS = [
   "Across the Universe",
 ];
 
+// The phone quiz: different questions from the ones shown on the big screen, so the screen never gives answers away.
+const QUIZ = [
+  { q: 'מי מהביטלס נולד ראשון?', right: "רינגו סטאר", wrong: ["ג׳ון לנון", "פול מקרטני", "ג׳ורג׳ הריסון"] },
+  { q: 'מי היה הצעיר בביטלס?', right: "ג׳ורג׳ הריסון", wrong: ["פול מקרטני", "רינגו סטאר", "ג׳ון לנון"] },
+  { q: 'איך נקראה הלהקה של ג׳ון לנון לפני הביטלס?', right: "The Quarrymen", wrong: ["Wings", "The Hollies", "The Searchers"] },
+  { q: 'איך נקראה הלהקה שהקים פול מקרטני אחרי הביטלס?', right: "Wings", wrong: ["Cream", "Traveling Wilburys", "Plastic Ono Band"] },
+  { q: 'באיזה סרט מ‑1964 הביטלס בורחים ממעריצות ברחבי לונדון?', right: "A Hard Day's Night", wrong: ["Help!", "Let It Be", "Magical Mystery Tour"] },
+  { q: 'איזה שיר של הביטלס נחשב לשיר עם הכי הרבה גרסאות כיסוי?', right: "Yesterday", wrong: ["Let It Be", "Hey Jude", "Michelle"] },
+  { q: 'מי מהביטלס הכניס את הסיטאר ההודי לשירי הלהקה?', right: "ג׳ורג׳ הריסון", wrong: ["ג׳ון לנון", "פול מקרטני", "רינגו סטאר"] },
+  { q: 'איך ממשיכה השורה „Ob-la-di, ob-la-da, life goes…”?', right: "on", wrong: ["by", "home", "away"] },
+  { q: 'באיזה אצטדיון בניו יורק הופיעו הביטלס ב‑1965 מול יותר מ‑55 אלף איש?', right: "Shea Stadium", wrong: ["Yankee Stadium", "Madison Square Garden", "Wembley"] },
+  { q: 'באיזו שנה נרצח ג׳ון לנון?', right: "1980", wrong: ["1975", "1985", "1970"] },
+];
+
 const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
 
 function createSongRaffleForm() {
@@ -109,6 +124,16 @@ function createSongRaffleForm() {
     .setChoiceValues(['אני מסכים/ה לקבל מ' + ARTIST + ' הודעות פרסומיות בוואטסאפ וב‑SMS על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת בהודעת "הסר".'])
     .setRequired(REQUIRE_UPDATES_CONSENT);
 
+  form.addPageBreakItem()
+    .setTitle('🎸 חידון ביטלס')
+    .setHelpText('10 שאלות, לא חובה. מי שעונה הכי הרבה תשובות נכונות יופיע בטבלת המובילים על המסך!');
+  QUIZ.forEach(({ q, right, wrong }) => {
+    const item = form.addMultipleChoiceItem().setTitle(q);
+    item.setChoices([right, ...wrong].sort(() => Math.random() - .5).map((c) => item.createChoice(c, c === right)));
+    item.setPoints(1);
+  });
+  form.setIsQuiz(true);
+
   form.setConfirmationMessage(GROUP_LINK
     ? 'נרשמתם להגרלה! 🎶 תסתכלו על המסך, אולי תזכו לבחור את השיר הבא.\n\nלהצטרפות לקבוצת הוואטסאפ שלנו: ' + GROUP_LINK
     : 'נרשמתם להגרלה! 🎶 תסתכלו על המסך, אולי תזכו לבחור את השיר הבא.');
@@ -120,8 +145,9 @@ function createSongRaffleForm() {
 
   const responses = SpreadsheetApp.openById(ss.getId()).getSheets().find((s) => s.getFormUrl());
   const stage = ss.insertSheet('במה');
-  stage.getRange('A1').setFormula(
-    "=QUERY('" + responses.getName() + "'!A:C, \"select B, C where B is not null\", 1)");
+  stage.appendRow(['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
+  PropertiesService.getScriptProperties().setProperty('STAGE_SHEET', ss.getId());
+  ScriptApp.newTrigger('onSignup').forForm(form).onFormSubmit().create();
   ss.getSheets()
     .filter((s) => s.getSheetId() !== responses.getSheetId() && s.getSheetId() !== stage.getSheetId())
     .forEach((s) => ss.deleteSheet(s));
@@ -130,4 +156,17 @@ function createSongRaffleForm() {
   Logger.log('עריכת הטופס: ' + form.getEditUrl());
   Logger.log('הגיליון: ' + ss.getUrl());
   Logger.log('עכשיו בגיליון: קובץ ← שיתוף ← פרסום באינטרנט ← לשונית "במה" ← CSV ← פרסום, ולהדביק את הלינק במשחק.');
+}
+
+// Runs on every sign-up: adds name, song and quiz score to the "במה" tab (never the phone number).
+function onSignup(e) {
+  const answers = {};
+  e.response.getItemResponses().forEach((r) => { answers[r.getItem().getTitle()] = r.getResponse(); });
+  const score = QUIZ.filter(({ q, right }) => answers[q] === right).length;
+  const ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('STAGE_SHEET'));
+  ss.getSheetByName('במה').appendRow([
+    answers['השם שיוצג על המסך'] || '',
+    answers['איזה שיר של הביטלס הייתם רוצים לבחור?'] || '',
+    score,
+  ]);
 }

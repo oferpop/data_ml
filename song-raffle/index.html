@@ -203,7 +203,7 @@ html:has(body.projection) { background: #000; }
 body.projection { padding: 0; margin: 0; background: #000; }
 body.projection .wrap { max-width: none; }
 body.projection header, body.projection .modes, body.projection .panels, body.projection .stage > .row,
-body.projection .song-form, body.projection .stage-actions { display: none; }
+body.projection .song-form, body.projection .stage-actions, body.projection .toast { display: none !important; }
 body.projection .stage { min-height: 100vh; border: 0; border-radius: 0; background: #000; }
 body.projection .eyebrow { font-size: 1.4rem; }
 body.projection .drum { font-size: clamp(5rem, 16vw, 14rem); }
@@ -237,6 +237,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <div class="eyebrow" id="tvEyebrow">חידון ביטלס</div>
       <div class="tv-q" id="tvQ"></div>
       <div class="tv-answers" id="tvAnswers"></div>
+      <ol class="fin-list" id="tvBoard" hidden></ol>
       <div class="tv-foot" id="tvFoot" hidden>
         <div class="tv-timer"><div class="tv-bar" id="tvBar"></div></div>
         <div class="tv-count" id="tvCount"></div>
@@ -264,7 +265,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     </div>
 
     <div class="join" id="joinBox" hidden>
-      <div class="join-title">סרקו ובחרו שיר</div>
+      <div class="join-title">סרקו: חידון ביטלס ובחירת שיר</div>
       <div class="qr" id="qr"></div>
       <div class="join-link" id="joinLink"></div>
     </div>
@@ -275,6 +276,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     <div class="row" style="justify-content:center">
       <span class="pool-line" id="poolLine"></span>
       <button class="btn small" id="tvPauseBtn" type="button" hidden>עצירה</button>
+      <button class="btn small" id="tvBoardBtn" type="button" hidden>טבלת המובילים</button>
       <button class="btn small" id="soundBtn" type="button" aria-pressed="true">🔊 צליל</button>
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
       <button class="btn small" id="qrBtn" type="button" hidden>QR להצטרפות</button>
@@ -340,7 +342,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
     <section class="panel wide" aria-labelledby="tvTitle">
       <h2 id="tvTitle">שאלות חידון הביטלס <small id="tvTotal"></small></h2>
-      <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. התשובות מתערבבות על המסך והשאלות מוגרלות בסדר אקראי. אפשר לערוך, להוסיף ולמחוק שאלות.</p>
+      <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. אלה השאלות שמוצגות <b>על המסך</b>. הן מוגרלות בסדר אקראי, והתשובות מתערבבות. חידון הטלפון (10 שאלות אחרות, עם ניקוד) נמצא בטופס ההרשמה, והמובילים בו מוצגים על המסך כל כמה שאלות.</p>
       <textarea id="tvText" spellcheck="false"></textarea>
       <div class="row">
         <button class="btn primary" id="tvSave" type="button">שמירת השאלות</button>
@@ -530,13 +532,14 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   function mergePeople(map) {
     if (state.sample) { state.people = []; state.history = []; state.shirtWins = []; state.finale = null; state.sample = false; }
     let added = 0;
-    for (const [id, { name, song }] of map) {
+    for (const [id, { name, song, score = null }] of map) {
       const existing = state.people.find((p) => (p.id || p.name) === id);
       if (existing) {
         [...state.history, ...state.shirtWins].forEach((h) => { if (h.name === existing.name) h.name = name; });
         existing.name = name;
         if (song) existing.song = song;
-      } else { state.people.push({ id, name, song, active: true }); added++; }
+        if (score !== null) existing.score = score;
+      } else { state.people.push({ id, name, song, score, active: true }); added++; }
     }
     return added;
   }
@@ -561,12 +564,14 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     const [head = [], ...rows] = csvRows(text.replace(/^﻿/, ""));
     let songCol = head.findIndex((h) => /שיר|song/i.test(h));
     let nameCol = head.findIndex((h, i) => i !== songCol && /שם|name/i.test(h));
+    const scoreCol = head.findIndex((h) => /ניקוד|score/i.test(h));
     if (nameCol < 0) nameCol = 0;
     if (songCol < 0) songCol = nameCol === 0 ? 1 : 0;
     const found = new Map();
     for (const r of rows) {
       const name = cleanName(r[nameCol] || "").slice(0, 30);
-      if (name) found.set(name, { name, song: (r[songCol] || "").trim().slice(0, 80) });
+      const score = scoreCol >= 0 && r[scoreCol] !== "" ? parseInt(r[scoreCol], 10) : null;
+      if (name) found.set(name, { name, song: (r[songCol] || "").trim().slice(0, 80), score: Number.isNaN(score) ? null : score });
     }
     return found;
   }
@@ -617,6 +622,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       [660, 880].forEach((f, i) => setTimeout(() => beep(f, .25, .1), i * 120));
     } else if (tv.phase === "reveal" && state.trivia.qrBetween && state.invite && tv.count % 3 === 0) {
       tv.phase = "qr"; tv.until = now + 12000;
+    } else if (tv.phase === "reveal" && tv.count % 3 === 2 && leaders().length) {
+      tv.phase = "board"; tv.until = now + 12000;
     } else {
       tv.pos++;
       if (tv.pos >= tv.order.length || tv.order.length !== qs.length) { tv.order = shuffle(qs.map((_, i) => i)); tv.pos = 0; }
@@ -635,6 +642,13 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     $("tvFoot").hidden = tv.phase !== "question";
     const box = $("tvAnswers");
     box.innerHTML = "";
+    $("tvBoard").hidden = tv.phase !== "board";
+    if (tv.phase === "board") {
+      $("tvEyebrow").textContent = "חידון הביטלס בטלפון · סרקו את ה‑QR וענו";
+      $("tvQ").textContent = "המובילים כרגע";
+      renderBoard();
+      return;
+    }
     if (tv.phase === "idle") {
       $("tvEyebrow").textContent = "חידון ביטלס";
       $("tvQ").textContent = qs.length ? "מתחילים בעוד רגע…" : "עוד אין שאלות לחידון";
@@ -661,6 +675,34 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     const left = Math.max(0, tv.paused ? tv.left : tv.until - Date.now());
     $("tvBar").style.width = (left / (state.trivia.seconds * 1000)) * 100 + "%";
     $("tvCount").textContent = Math.ceil(left / 1000);
+  }
+
+  // Phone-quiz leaderboard: best scores first, earlier sign-ups win ties.
+  const leaders = () => state.people.filter((p) => p.active && typeof p.score === "number")
+    .map((p, i) => ({ p, i })).sort((a, b) => b.p.score - a.p.score || a.i - b.i).slice(0, 5).map((x) => x.p);
+  function renderBoard() {
+    const list = $("tvBoard"), top = leaders();
+    list.innerHTML = "";
+    if (!top.length) { list.innerHTML = '<li class="empty" style="display:block">עוד אף אחד לא ענה על החידון בטלפון.</li>'; return; }
+    const max = Math.max(1, top[0].score);
+    top.forEach((p, i) => {
+      const li = document.createElement("li");
+      if (i === 0) li.className = "top";
+      const bar = document.createElement("span");
+      bar.className = "bar";
+      bar.style.width = (p.score / max) * 100 + "%";
+      const rank = document.createElement("span");
+      rank.className = "rank";
+      rank.textContent = i + 1;
+      const title = document.createElement("span");
+      title.className = "title";
+      title.textContent = p.name;
+      const cnt = document.createElement("span");
+      cnt.className = "cnt";
+      cnt.textContent = `${p.score} מתוך 10`;
+      li.append(bar, rank, title, cnt);
+      list.append(li);
+    });
   }
 
   setInterval(() => {
@@ -812,6 +854,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     }
     $("tvPauseBtn").hidden = m !== "trivia" || tv.phase === "idle";
     $("tvPauseBtn").textContent = tv.paused ? "המשך" : "עצירה";
+    $("tvBoardBtn").hidden = m !== "trivia";
 
     $("onceOnly").checked = state.onceOnly;
     $("soundBtn").textContent = state.sound ? "🔊 צליל" : "🔇 ללא צליל";
@@ -998,6 +1041,12 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (tv.paused) { tv.until = Date.now() + tv.left; tv.paused = false; }
     else { tv.left = Math.max(0, tv.until - Date.now()); tv.paused = true; }
     render();
+  };
+  // Show the phone-quiz leaderboard now (e.g. to announce the winner when the show starts); the main action moves on.
+  $("tvBoardBtn").onclick = () => {
+    tv.phase = "board"; tv.until = Date.now() + 60000; tv.paused = true;
+    $("tvBoardBtn").blur();
+    renderStage();
   };
   $("tvSave").onclick = () => {
     state.trivia.text = $("tvText").value;
