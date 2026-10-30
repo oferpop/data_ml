@@ -129,6 +129,13 @@ textarea { min-height: 84px; resize: vertical; }
 .setlist time { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
 .toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--spot); color: var(--spot-ink); padding: 8px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); }
 .confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .9rem; }
+.join { display: grid; justify-items: center; gap: 10px; }
+.join .qr { background: #ffffff; padding: 14px; border-radius: 14px; line-height: 0; }
+.join .qr img, .join .qr canvas { width: min(240px, 60vw); height: auto; }
+.join-title { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.4rem); line-height: 1; color: var(--spot); }
+.join-link { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; direction: ltr; }
+.invite-form { display: flex; gap: 8px; }
+.invite-form input { flex: 1; min-width: 0; direction: ltr; text-align: left; }
 @media (prefers-reduced-motion: reduce) { .drum.winner { animation: none; } }
 </style>
 
@@ -149,6 +156,11 @@ textarea { min-height: 84px; resize: vertical; }
         <button class="btn primary" type="submit">שמירה</button>
       </form>
     </div>
+    <div class="join" id="joinBox" hidden>
+      <div class="join-title">סרקו והצטרפו לקבוצה</div>
+      <div class="qr" id="qr"></div>
+      <div class="join-link" id="joinLink"></div>
+    </div>
     <div class="stage-actions">
       <button class="btn-spin" id="spinBtn" type="button">הגרילו!</button>
     </div>
@@ -156,6 +168,7 @@ textarea { min-height: 84px; resize: vertical; }
       <span class="pool-line" id="poolLine"></span>
       <button class="btn small" id="soundBtn" type="button" aria-pressed="true">🔊 צליל</button>
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
+      <button class="btn small" id="qrBtn" type="button" hidden>QR להצטרפות</button>
     </div>
   </section>
 
@@ -166,6 +179,11 @@ textarea { min-height: 84px; resize: vertical; }
         ייבוא מוואטסאפ: בקבוצה ← ⋮ / שם הקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”, ואז לבחור כאן את קובץ ה‑txt (או zip שחולץ).
         האפליקציה אוספת את כל מי שכתב או הצטרף לקבוצה. הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת השיר של אותו חבר.
       </p>
+      <label class="hint" for="inviteInput">לינק ההזמנה לקבוצה (פרטי הקבוצה ← הזמנה באמצעות קישור ← העתקה). המשחק יציג ממנו QR על הבמה:</label>
+      <form class="invite-form" id="inviteForm">
+        <input type="text" id="inviteInput" placeholder="https://chat.whatsapp.com/..." autocomplete="off" inputmode="url">
+        <button class="btn primary" type="submit">שמירה</button>
+      </form>
       <div class="row">
         <label class="btn file-btn" for="chatFile">ייבוא צ׳אט (.txt)
           <input type="file" id="chatFile" accept=".txt,text/plain">
@@ -199,6 +217,7 @@ textarea { min-height: 84px; resize: vertical; }
 </div>
 <div class="toast" id="toast" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 (() => {
   const KEY = "song-raffle-v1";
@@ -317,6 +336,8 @@ textarea { min-height: 84px; resize: vertical; }
     $("onceOnly").checked = state.onceOnly;
     $("soundBtn").textContent = state.sound ? "🔊 צליל" : "🔇 ללא צליל";
     $("soundBtn").setAttribute("aria-pressed", String(state.sound));
+    $("qrBtn").hidden = !state.invite;
+    if (document.activeElement !== $("inviteInput")) $("inviteInput").value = state.invite || "";
 
     const list = $("setlist");
     list.innerHTML = "";
@@ -406,6 +427,7 @@ textarea { min-height: 84px; resize: vertical; }
     const drum = $("drum");
     drum.className = "drum rolling";
     $("songSlot").hidden = true;
+    showJoin(false);
     $("eyebrow").textContent = "מערבבים את הכובע…";
     const names = state.people.filter((p) => p.active).map((p) => p.name);
     const total = reduced ? 600 : 4200;
@@ -481,6 +503,29 @@ textarea { min-height: 84px; resize: vertical; }
 
   $("onceOnly").onchange = (e) => { state.onceOnly = e.target.checked; save(); render(); };
   $("soundBtn").onclick = () => { state.sound = !state.sound; save(); render(); };
+
+  // Invite link -> QR code on the stage, so the audience can join the group during the show.
+  function showJoin(on) {
+    const box = $("joinBox");
+    box.hidden = !on || !state.invite;
+    if (!box.hidden) {
+      const q = $("qr");
+      q.innerHTML = "";
+      if (window.QRCode) new QRCode(q, { text: state.invite, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+      else q.textContent = state.invite;
+      $("joinLink").textContent = state.invite;
+    }
+    $("qrBtn").textContent = box.hidden ? "QR להצטרפות" : "הסתרת QR";
+  }
+  $("qrBtn").onclick = () => showJoin($("joinBox").hidden);
+  $("inviteForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("inviteInput").value.trim();
+    if (v && !/^https:\/\/chat\.whatsapp\.com\/\S+$/.test(v)) { toast("הלינק צריך להתחיל ב‑https://chat.whatsapp.com/"); return; }
+    state.invite = v;
+    save(); render(); showJoin(!!v);
+    toast(v ? "הלינק נשמר. ה‑QR מוצג על הבמה" : "הלינק הוסר");
+  });
 
   $("undoBtn").onclick = () => {
     if (!state.history.length) return;
