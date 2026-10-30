@@ -16,12 +16,72 @@ const GROUP_LINK = '';                              // optional: https://chat.wh
 // true  = signing up for the raffle requires agreeing to receive updates.
 const REQUIRE_UPDATES_CONSENT = false;
 
+// The band's repertoire: the audience picks from this list. Edit it to match your setlist.
+const SONGS = [
+  "Love Me Do",
+  "Please Please Me",
+  "From Me to You",
+  "She Loves You",
+  "I Want to Hold Your Hand",
+  "Twist and Shout",
+  "All My Loving",
+  "Can't Buy Me Love",
+  "A Hard Day's Night",
+  "And I Love Her",
+  "I Feel Fine",
+  "Eight Days a Week",
+  "Ticket to Ride",
+  "Help!",
+  "Yesterday",
+  "Day Tripper",
+  "We Can Work It Out",
+  "Drive My Car",
+  "Norwegian Wood",
+  "Michelle",
+  "In My Life",
+  "Nowhere Man",
+  "Paperback Writer",
+  "Eleanor Rigby",
+  "Yellow Submarine",
+  "Here, There and Everywhere",
+  "Got to Get You into My Life",
+  "Penny Lane",
+  "Strawberry Fields Forever",
+  "With a Little Help from My Friends",
+  "Lucy in the Sky with Diamonds",
+  "Sgt. Pepper's Lonely Hearts Club Band",
+  "When I'm Sixty-Four",
+  "A Day in the Life",
+  "All You Need Is Love",
+  "Hello, Goodbye",
+  "Magical Mystery Tour",
+  "Lady Madonna",
+  "Hey Jude",
+  "Revolution",
+  "Back in the U.S.S.R.",
+  "Ob-La-Di, Ob-La-Da",
+  "While My Guitar Gently Weeps",
+  "Blackbird",
+  "Helter Skelter",
+  "Get Back",
+  "Don't Let Me Down",
+  "The Ballad of John and Yoko",
+  "Come Together",
+  "Something",
+  "Here Comes the Sun",
+  "Octopus's Garden",
+  "Oh! Darling",
+  "Let It Be",
+  "The Long and Winding Road",
+  "Across the Universe",
+];
+
 const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
 
 function createSongRaffleForm() {
   const form = FormApp.create('🎤 בוחרים שיר בהופעה – ' + ARTIST);
   form.setDescription([
-    'נרשמים, בוחרים שיר, ובמהלך ההופעה נגריל מי בוחר את השיר הבא!',
+    'נרשמים, בוחרים שיר של הביטלס, ובמהלך ההופעה נגריל מי בוחר את השיר הבא! השיר הכי מבוקש ייסגר את הערב.',
     '',
     'הודעה על איסוף מידע: את הפרטים בטופס אוסף ' + ARTIST + ' (' + CONTACT + ').',
     'השם והשיר משמשים להגרלה ויוצגו על המסך בהופעה. הטלפון והאזור ישמשו רק לשליחת עדכונים על הופעות, ורק אם תסמנו את האישור לכך.',
@@ -31,7 +91,7 @@ function createSongRaffleForm() {
   form.setCollectEmail(false);
 
   form.addTextItem().setTitle('השם שיוצג על המסך').setRequired(true);
-  form.addTextItem().setTitle('השיר שהייתם רוצים לבחור').setRequired(true);
+  form.addListItem().setTitle('איזה שיר של הביטלס הייתם רוצים לבחור?').setChoiceValues(SONGS).setRequired(true);
   form.addTextItem()
     .setTitle('טלפון נייד (לעדכונים בוואטסאפ)')
     .setRequired(REQUIRE_UPDATES_CONSENT)

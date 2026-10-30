@@ -219,7 +219,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
 <div class="wrap">
   <header>
-    <h1>ערב <span>הופעה</span></h1>
+    <h1>ערב <span>ביטלס</span></h1>
     <p class="tagline">חידון ביטלס לפני, הגרלות באמצע, והקהל בוחר את שיר הסיום.</p>
   </header>
 
@@ -249,7 +249,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <div class="song-slot" id="songSlot" hidden>
         <div class="song-shown" id="songShown" hidden></div>
         <form class="song-form" id="songForm">
-          <input type="text" id="songInput" placeholder="איזה שיר? (שם השיר / אמן)" autocomplete="off">
+          <input type="text" id="songInput" list="beatlesSongs" placeholder="איזה שיר של הביטלס?" autocomplete="off">
+          <datalist id="beatlesSongs"></datalist>
           <button class="btn primary" type="submit">שמירה</button>
         </form>
       </div>
@@ -310,7 +311,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <button class="btn small" id="clearNo" type="button">ביטול</button>
       </div>
       <label class="hint" for="addInput">או הדביקו שמות, שם בכל שורה (אפשר גם „שם - שיר”):</label>
-      <textarea id="addInput" placeholder="דנה&#10;יוסי - הללויה&#10;מאיה"></textarea>
+      <textarea id="addInput" placeholder="דנה&#10;יוסי - Yesterday&#10;מאיה"></textarea>
       <div class="row">
         <button class="btn primary" id="addBtn" type="button">הוספה</button>
         <label class="toggle"><input type="checkbox" id="onceOnly" checked> כל אחד בוחר שיר רק פעם אחת</label>
@@ -386,15 +387,75 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     "איך נקרא באמת „האלבום הלבן” של הביטלס? | The Beatles | Revolver | Rubber Soul | Abbey Road",
   ].join("\n");
 
+  // Song suggestions while typing the winner's pick (same list as the sign-up form).
+  const BEATLES_SONGS = [
+    "Love Me Do",
+    "Please Please Me",
+    "From Me to You",
+    "She Loves You",
+    "I Want to Hold Your Hand",
+    "Twist and Shout",
+    "All My Loving",
+    "Can't Buy Me Love",
+    "A Hard Day's Night",
+    "And I Love Her",
+    "I Feel Fine",
+    "Eight Days a Week",
+    "Ticket to Ride",
+    "Help!",
+    "Yesterday",
+    "Day Tripper",
+    "We Can Work It Out",
+    "Drive My Car",
+    "Norwegian Wood",
+    "Michelle",
+    "In My Life",
+    "Nowhere Man",
+    "Paperback Writer",
+    "Eleanor Rigby",
+    "Yellow Submarine",
+    "Here, There and Everywhere",
+    "Got to Get You into My Life",
+    "Penny Lane",
+    "Strawberry Fields Forever",
+    "With a Little Help from My Friends",
+    "Lucy in the Sky with Diamonds",
+    "Sgt. Pepper's Lonely Hearts Club Band",
+    "When I'm Sixty-Four",
+    "A Day in the Life",
+    "All You Need Is Love",
+    "Hello, Goodbye",
+    "Magical Mystery Tour",
+    "Lady Madonna",
+    "Hey Jude",
+    "Revolution",
+    "Back in the U.S.S.R.",
+    "Ob-La-Di, Ob-La-Da",
+    "While My Guitar Gently Weeps",
+    "Blackbird",
+    "Helter Skelter",
+    "Get Back",
+    "Don't Let Me Down",
+    "The Ballad of John and Yoko",
+    "Come Together",
+    "Something",
+    "Here Comes the Sun",
+    "Octopus's Garden",
+    "Oh! Darling",
+    "Let It Be",
+    "The Long and Winding Road",
+    "Across the Universe",
+  ];
+
   const SAMPLE = {
     sample: true,
     people: [
-      { name: "נועה (דוגמה)", song: "חופים", active: true },
-      { name: "אבי (דוגמה)", song: "אהבה בסוף הקיץ", active: true },
-      { name: "שירה (דוגמה)", song: "חופים", active: true },
+      { name: "נועה (דוגמה)", song: "Hey Jude", active: true },
+      { name: "אבי (דוגמה)", song: "Let It Be", active: true },
+      { name: "שירה (דוגמה)", song: "Hey Jude", active: true },
       { name: "דודי (דוגמה)", song: "", active: true },
-      { name: "מיכל (דוגמה)", song: "הללויה", active: true },
-      { name: "רון (דוגמה)", song: "חופים", active: true },
+      { name: "מיכל (דוגמה)", song: "Here Comes the Sun", active: true },
+      { name: "רון (דוגמה)", song: "Hey Jude", active: true },
     ],
     history: [],
     onceOnly: true,
@@ -1076,6 +1137,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     toastTimer = setTimeout(() => (t.hidden = true), 2800);
   }
 
+  $("beatlesSongs").append(...BEATLES_SONGS.map((t) => Object.assign(document.createElement("option"), { value: t })));
   $("tvText").value = state.trivia.text;
   renderStage();
 
