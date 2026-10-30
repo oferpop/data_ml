@@ -4,17 +4,19 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@700&family=Assistant:wght@400;600;800&display=swap">
 <style>
-/* Layout: one stage card (the drum + reveal) on top, two working panels underneath — members and the night's setlist.
+/* Layout: the night's four segments as tabs over one stage card (what the big screen shows), with the working panels underneath.
    Deliberately single-theme: a dark concert stage under an amber spotlight. */
 :root {
   --stage: #170f2b;
   --curtain: #2b1436;
   --panel: #21173a;
   --spot: #ffc94a;
+  --spot-soft: rgba(255, 201, 74, .16);
   --spot-ink: #2a1600;
   --ink: #f6eedf;
   --muted: #b5a6c8;
   --line: #3d2f5c;
+  --shade: rgba(0, 0, 0, .28);
   --danger: #ff7a7a;
   --font-display: "Karantina", "Assistant", "Arial Hebrew", sans-serif;
   --font-body: "Assistant", "Segoe UI", "Arial Hebrew", system-ui, sans-serif;
@@ -29,17 +31,31 @@ body {
   font-size: 16px;
   line-height: 1.5;
   direction: rtl;
+  margin: 0;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 20px 40px;
 }
-.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 20px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; }
 header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 h1 { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; margin: 0; letter-spacing: .01em; text-wrap: balance; }
 h1 span { color: var(--spot); }
 .tagline { color: var(--muted); margin: 0; }
 button { font: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within { outline: 3px solid var(--spot); outline-offset: 2px; }
+
+/* ---------- Segment tabs ---------- */
+.modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 620px) { .modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mode-btn {
+  display: grid; gap: 0; text-align: start; padding: 8px 12px; border-radius: 12px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+}
+.mode-btn b { font-family: var(--font-display); font-size: 1.6rem; line-height: 1.1; font-weight: 700; }
+.mode-btn small { color: var(--muted); font-size: .8rem; }
+.mode-btn kbd { font: inherit; font-size: .75rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-inline-start: 6px; }
+.mode-btn[aria-selected="true"] { background: var(--spot); color: var(--spot-ink); border-color: var(--spot); }
+.mode-btn[aria-selected="true"] small, .mode-btn[aria-selected="true"] kbd { color: var(--spot-ink); border-color: var(--spot-ink); }
 
 /* ---------- Stage ---------- */
 .stage {
@@ -55,9 +71,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-w
   justify-items: center;
   gap: 18px;
   text-align: center;
+  min-height: 420px;
+  align-content: center;
 }
-.stage:fullscreen { border-radius: 0; align-content: center; padding: 40px; }
-#confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.stage:fullscreen { border-radius: 0; padding: 40px; }
+#confetti { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+.view { display: grid; justify-items: center; gap: 18px; width: 100%; }
 .eyebrow { font-size: .8rem; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
 .drum {
   width: 100%;
@@ -74,6 +93,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-w
 .song-slot { display: grid; gap: 10px; justify-items: center; width: min(560px, 100%); }
 .song-shown { font-size: clamp(1.3rem, 4vw, 2rem); font-weight: 800; }
 .song-shown::before { content: "♪ "; color: var(--spot); }
+.shirt-note { font-size: clamp(1.2rem, 3.6vw, 1.9rem); font-weight: 800; }
 .song-form { display: flex; gap: 8px; width: 100%; }
 .song-form input { flex: 1; min-width: 0; }
 .stage-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
@@ -87,22 +107,67 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-w
 .btn-spin:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 .btn { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; }
 .btn:hover { border-color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn.primary { background: var(--spot); color: var(--spot-ink); border-color: var(--spot); font-weight: 800; }
 .btn.small { padding: 4px 10px; font-size: .9rem; }
 .pool-line { color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
 
+/* Trivia */
+.tv-q { font-size: clamp(1.6rem, 4.6vw, 3.2rem); font-weight: 800; line-height: 1.25; max-width: 28ch; text-wrap: balance; }
+.tv-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(920px, 100%); }
+@media (max-width: 520px) { .tv-answers { grid-template-columns: 1fr; } }
+.ans {
+  display: flex; gap: 12px; align-items: center; text-align: start; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--shade);
+  font-size: clamp(1.1rem, 2.6vw, 1.8rem); font-weight: 600; min-width: 0; overflow-wrap: anywhere;
+  transition: opacity .3s, background .3s, color .3s;
+}
+.ans .letter { font-family: var(--font-display); color: var(--spot); font-size: 1.6em; line-height: 1; min-width: 1em; }
+.ans.correct { background: var(--spot); color: var(--spot-ink); border-color: var(--spot); }
+.ans.correct .letter { color: var(--spot-ink); }
+.ans.dim { opacity: .3; }
+.tv-foot { display: flex; align-items: center; gap: 14px; width: min(920px, 100%); }
+.tv-timer { flex: 1; height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.tv-bar { height: 100%; width: 100%; background: var(--spot); transition: width .2s linear; }
+.tv-count { font-family: var(--font-display); font-size: 2.4rem; line-height: 1; color: var(--spot); font-variant-numeric: tabular-nums; min-width: 1.5em; }
+
+/* Finale */
+.fin-list { list-style: none; margin: 0; padding: 0; width: min(780px, 100%); display: grid; gap: 10px; }
+.fin-list li {
+  position: relative; overflow: hidden; display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 12px; background: var(--shade); border: 1px solid var(--line); text-align: start;
+}
+.fin-list .bar { position: absolute; inset-block: 0; inset-inline-start: 0; background: var(--spot-soft); transition: width .8s ease-out; }
+.fin-list .rank, .fin-list .title, .fin-list .cnt { position: relative; }
+.fin-list .rank { font-family: var(--font-display); font-size: 1.9rem; line-height: 1; color: var(--spot); }
+.fin-list .title { font-weight: 800; font-size: clamp(1.1rem, 2.8vw, 1.8rem); overflow-wrap: anywhere; }
+.fin-list .cnt { color: var(--muted); font-variant-numeric: tabular-nums; }
+.fin-list li.veiled .title { color: var(--muted); letter-spacing: .3em; }
+.fin-list li.top { border-color: var(--spot); }
+
+/* QR */
+.join { display: grid; justify-items: center; gap: 10px; }
+.join .qr { background: #ffffff; padding: 14px; border-radius: 14px; line-height: 0; }
+.join .qr img, .join .qr canvas { width: min(260px, 60vw); height: auto; }
+.join-title { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.4rem); line-height: 1; color: var(--spot); }
+.join-link { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; direction: ltr; }
+
 /* ---------- Panels ---------- */
-.panels { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; align-items: start; }
+.panels { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; align-items: start; }
+.panels > .wide { grid-column: 1 / -1; }
 @media (max-width: 760px) { .panels { grid-template-columns: 1fr; } }
+.side { display: grid; gap: 16px; min-width: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
 .panel h2 { margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel h2 small { color: var(--muted); font-weight: 400; font-size: .9rem; font-variant-numeric: tabular-nums; }
 .hint { color: var(--muted); font-size: .9rem; margin: 0; }
-input[type="text"], textarea {
+input[type="text"], input[type="number"], textarea {
   font: inherit; color: var(--ink); background: var(--stage); border: 1px solid var(--line);
   border-radius: 10px; padding: 9px 12px; width: 100%;
 }
+input[type="number"] { width: 5.5em; }
 textarea { min-height: 84px; resize: vertical; }
+#tvText { min-height: 220px; font-size: .95rem; line-height: 1.6; }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
@@ -119,31 +184,27 @@ textarea { min-height: 84px; resize: vertical; }
 .chip .x:hover { color: var(--danger); }
 .chip.off .name { color: var(--muted); text-decoration: line-through; }
 .chip.won { border-color: var(--spot); }
-.chip.won .name { color: var(--muted); }
 .empty { color: var(--muted); font-style: italic; }
 .setlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; counter-reset: s; }
 .setlist li { display: grid; grid-template-columns: 2.2em 1fr auto; gap: 8px; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); counter-increment: s; }
 .setlist li::before { content: counter(s); font-family: var(--font-display); font-size: 1.5rem; color: var(--spot); line-height: 1; }
+.setlist li.finale::before { content: "★"; }
 .setlist .who { font-weight: 800; overflow-wrap: anywhere; }
 .setlist .what { display: block; color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 .setlist time { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
-.toast { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--spot); color: var(--spot-ink); padding: 8px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); }
+.toast { position: fixed; z-index: 6; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--spot); color: var(--spot-ink); padding: 8px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); }
 .confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .9rem; }
-.join { display: grid; justify-items: center; gap: 10px; }
-.join .qr { background: #ffffff; padding: 14px; border-radius: 14px; line-height: 0; }
-.join .qr img, .join .qr canvas { width: min(240px, 60vw); height: auto; }
-.join-title { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.4rem); line-height: 1; color: var(--spot); }
-.join-link { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; direction: ltr; }
 .invite-form { display: flex; gap: 8px; }
 .invite-form input { flex: 1; min-width: 0; direction: ltr; text-align: left; }
+
 /* Projection mode: a clean black window for capture into Resolume (black keys out with Add/Screen blending). */
 .proj-exit { display: none; }
 html:has(body.projection) { background: #000; }
 body.projection { padding: 0; margin: 0; background: #000; }
 body.projection .wrap { max-width: none; }
-body.projection header, body.projection .panels, body.projection .stage > .row,
+body.projection header, body.projection .modes, body.projection .panels, body.projection .stage > .row,
 body.projection .song-form, body.projection .stage-actions { display: none; }
-body.projection .stage { min-height: 100vh; border: 0; border-radius: 0; background: #000; align-content: center; }
+body.projection .stage { min-height: 100vh; border: 0; border-radius: 0; background: #000; }
 body.projection .eyebrow { font-size: 1.4rem; }
 body.projection .drum { font-size: clamp(5rem, 16vw, 14rem); }
 body.projection .proj-exit {
@@ -153,36 +214,66 @@ body.projection .proj-exit {
   padding: 4px 10px; font-size: .8rem; opacity: .3;
 }
 body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opacity: 1; }
-@media (prefers-reduced-motion: reduce) { .drum.winner { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .drum.winner { animation: none; } .tv-bar, .fin-list .bar { transition: none; } }
 </style>
 
 <div class="wrap">
   <header>
-    <h1>הגרלת <span>שיר</span> בהופעה</h1>
-    <p class="tagline">כל מי שבקבוצה נכנס לכובע. מי שעולה, בוחר את השיר הבא.</p>
+    <h1>ערב <span>הופעה</span></h1>
+    <p class="tagline">חידון לפני, הגרלות באמצע, והקהל בוחר את שיר הסיום.</p>
   </header>
+
+  <nav class="modes" role="tablist" aria-label="חלקי הערב">
+    <button class="mode-btn" role="tab" data-mode="trivia" type="button"><b>חידון טריוויה</b><small>לפני ההופעה<kbd>1</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="song" type="button"><b>הגרלת שיר</b><small>באמצע ההופעה<kbd>2</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="shirt" type="button"><b>הגרלת חולצה</b><small>באמצע ההופעה<kbd>3</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="finale" type="button"><b>שיר הסיום</b><small>הכי מבוקש הערב<kbd>4</kbd></small></button>
+  </nav>
 
   <section class="stage" id="stage" aria-live="polite">
     <canvas id="confetti" aria-hidden="true"></canvas>
-    <div class="eyebrow" id="eyebrow">השיר הבא נבחר על ידי…</div>
-    <div class="drum" id="drum">?</div>
-    <div class="song-slot" id="songSlot" hidden>
-      <div class="song-shown" id="songShown" hidden></div>
-      <form class="song-form" id="songForm">
-        <input type="text" id="songInput" placeholder="איזה שיר? (שם השיר / אמן)" autocomplete="off">
-        <button class="btn primary" type="submit">שמירה</button>
-      </form>
+
+    <div class="view" id="viewTrivia">
+      <div class="eyebrow" id="tvEyebrow">חידון לפני ההופעה</div>
+      <div class="tv-q" id="tvQ"></div>
+      <div class="tv-answers" id="tvAnswers"></div>
+      <div class="tv-foot" id="tvFoot" hidden>
+        <div class="tv-timer"><div class="tv-bar" id="tvBar"></div></div>
+        <div class="tv-count" id="tvCount"></div>
+      </div>
     </div>
+
+    <div class="view" id="viewRaffle">
+      <div class="eyebrow" id="eyebrow"></div>
+      <div class="drum" id="drum">?</div>
+      <div class="song-slot" id="songSlot" hidden>
+        <div class="song-shown" id="songShown" hidden></div>
+        <form class="song-form" id="songForm">
+          <input type="text" id="songInput" placeholder="איזה שיר? (שם השיר / אמן)" autocomplete="off">
+          <button class="btn primary" type="submit">שמירה</button>
+        </form>
+      </div>
+      <div class="shirt-note" id="shirtNote" hidden>👕 בואו לקחת את החולצה בסוף ההופעה!</div>
+    </div>
+
+    <div class="view" id="viewFinale">
+      <div class="eyebrow">שיר הסיום · השירים הכי מבוקשים הערב</div>
+      <ol class="fin-list" id="finList"></ol>
+      <div class="drum" id="finWinner" hidden></div>
+    </div>
+
     <div class="join" id="joinBox" hidden>
       <div class="join-title">סרקו ובחרו שיר</div>
       <div class="qr" id="qr"></div>
       <div class="join-link" id="joinLink"></div>
     </div>
+
     <div class="stage-actions">
-      <button class="btn-spin" id="spinBtn" type="button">הגרילו!</button>
+      <button class="btn-spin" id="mainBtn" type="button"></button>
     </div>
     <div class="row" style="justify-content:center">
       <span class="pool-line" id="poolLine"></span>
+      <button class="btn small" id="tvPauseBtn" type="button" hidden>עצירה</button>
       <button class="btn small" id="soundBtn" type="button" aria-pressed="true">🔊 צליל</button>
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
       <button class="btn small" id="qrBtn" type="button" hidden>QR להצטרפות</button>
@@ -199,16 +290,14 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <button class="btn primary" type="submit">חיבור</button>
       </form>
       <div class="pool-line" id="sheetStatus"></div>
-      <p class="hint">
-        ייבוא מוואטסאפ: בקבוצה ← ⋮ / שם הקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”, ואז לבחור כאן את קובץ ה‑txt (או zip שחולץ).
-        האפליקציה אוספת את כל מי שכתב או הצטרף לקבוצה. הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת השיר של אותו חבר, והודעה שמתחילה ב‑<b>שם:</b> קובעת את השם שיוצג על המסך.
-        מי שלא שמור אצלכם באנשי הקשר מופיע בייצוא כמספר טלפון, ועל המסך יוצגו רק 4 הספרות האחרונות.
-      </p>
-      <label class="hint" for="inviteInput">הלינק שהקהל יסרוק: לינק הטופס (מומלץ) או לינק ההזמנה לקבוצת הוואטסאפ. המשחק יציג ממנו QR על הבמה:</label>
+      <label class="hint" for="inviteInput">הלינק שהקהל יסרוק: לינק הטופס (מומלץ) או לינק ההזמנה לקבוצת הוואטסאפ. המשחק יציג ממנו QR על הבמה ובין שאלות החידון:</label>
       <form class="invite-form" id="inviteForm">
         <input type="text" id="inviteInput" placeholder="https://forms.gle/..." autocomplete="off" inputmode="url">
         <button class="btn primary" type="submit">שמירה</button>
       </form>
+      <p class="hint">
+        אפשר גם לייבא צ׳אט מוואטסאפ (בקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”): נאסף כל מי שכתב או הצטרף, הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת שיר ו‑<b>שם:</b> קובעת את השם שיוצג. מספרי טלפון מוצגים רק עם 4 הספרות האחרונות.
+      </p>
       <div class="row">
         <label class="btn file-btn" for="chatFile">ייבוא קובץ (צ׳אט / CSV)
           <input type="file" id="chatFile" accept=".txt,.csv,text/plain,text/csv">
@@ -216,7 +305,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <button class="btn" id="clearAllBtn" type="button">ניקוי הרשימה</button>
       </div>
       <div class="confirm" id="clearConfirm" hidden>
-        <span>למחוק את כל החברים וההיסטוריה?</span>
+        <span>למחוק את כל המשתתפים, הזוכים ושיר הסיום?</span>
         <button class="btn small primary" id="clearYes" type="button">כן, למחוק</button>
         <button class="btn small" id="clearNo" type="button">ביטול</button>
       </div>
@@ -224,18 +313,38 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <textarea id="addInput" placeholder="דנה&#10;יוסי - הללויה&#10;מאיה"></textarea>
       <div class="row">
         <button class="btn primary" id="addBtn" type="button">הוספה</button>
-        <label class="toggle"><input type="checkbox" id="onceOnly" checked> כל אחד זוכה רק פעם אחת</label>
+        <label class="toggle"><input type="checkbox" id="onceOnly" checked> כל אחד בוחר שיר רק פעם אחת</label>
       </div>
-      <p class="hint">לחיצה על שם מוציאה/מחזירה אותו מההגרלה (למשל מי שלא הגיע).</p>
+      <p class="hint">לחיצה על שם מוציאה/מחזירה אותו מההגרלות (למשל מי שלא הגיע). ♪ = ביקש שיר, ★ = כבר זכה.</p>
       <div class="chips" id="chips"></div>
     </section>
 
-    <section class="panel" aria-labelledby="setTitle">
-      <h2 id="setTitle">הסט־ליסט של הערב <small id="setCount"></small></h2>
-      <ol class="setlist" id="setlist"></ol>
+    <div class="side">
+      <section class="panel" aria-labelledby="setTitle">
+        <h2 id="setTitle">הסט־ליסט של הערב <small id="setCount"></small></h2>
+        <ol class="setlist" id="setlist"></ol>
+        <div class="row">
+          <button class="btn small" id="undoBtn" type="button">ביטול השיר האחרון</button>
+          <button class="btn small" id="copyBtn" type="button">העתקה לוואטסאפ</button>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="shirtTitle">
+        <h2 id="shirtTitle">זוכים בחולצה <small id="shirtCount"></small></h2>
+        <ol class="setlist" id="shirtList"></ol>
+        <div class="row">
+          <button class="btn small" id="undoShirtBtn" type="button">ביטול הזכייה האחרונה</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel wide" aria-labelledby="tvTitle">
+      <h2 id="tvTitle">שאלות החידון <small id="tvTotal"></small></h2>
+      <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. התשובות מתערבבות על המסך. אלה שאלות לדוגמה על מוזיקה. כדאי להחליף אותן בשאלות על הלהקה ועל השירים שלכם.</p>
+      <textarea id="tvText" spellcheck="false"></textarea>
       <div class="row">
-        <button class="btn small" id="undoBtn" type="button">ביטול הזכייה האחרונה</button>
-        <button class="btn small" id="copyBtn" type="button">העתקה לוואטסאפ</button>
+        <button class="btn primary" id="tvSave" type="button">שמירת השאלות</button>
+        <label class="toggle" for="tvSeconds">שניות לשאלה <input type="number" id="tvSeconds" min="5" max="120" step="1"></label>
+        <label class="toggle"><input type="checkbox" id="tvQr"> QR להרשמה כל 3 שאלות</label>
       </div>
     </section>
   </div>
@@ -249,15 +358,28 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   const KEY = "song-raffle-v1";
   const $ = (id) => document.getElementById(id);
 
+  const SAMPLE_TRIVIA = [
+    "מי כתבה את „ירושלים של זהב”? | נעמי שמר | עפרה חזה | שלמה ארצי | יהורם גאון",
+    "באיזו שנה זכתה נטע ברזילי באירוויזיון עם „Toy”? | 2018 | 2016 | 2019 | 2014",
+    "עם איזה שיר זכתה דנה אינטרנשיונל באירוויזיון 1998? | Diva | Toy | הללויה | אבניבי",
+    "מי ביצעו את „הללויה” שזכה באירוויזיון 1979? | גלי עטרי וחלב ודבש | יזהר כהן והאלפבתא | להקת הנח״ל | כוורת",
+    "מאיזו מדינה הגיעה להקת ABBA? | שוודיה | נורווגיה | דנמרק | הולנד",
+    "איזו להקה הוציאה את האלבום Abbey Road? | הביטלס | הרולינג סטונס | קווין | פינק פלויד",
+    "מי היה הסולן של להקת קווין? | פרדי מרקיורי | מיק ג׳אגר | בונו | רוברט פלאנט",
+    "מאיזו עיר הגיעו הביטלס? | ליברפול | לונדון | מנצ׳סטר | ברמינגהם",
+    "כמה מיתרים יש לגיטרה רגילה? | 6 | 4 | 5 | 7",
+    "כמה קווים יש בחמשה של תווים? | 5 | 4 | 6 | 7",
+  ].join("\n");
+
   const SAMPLE = {
     sample: true,
     people: [
-      { name: "נועה (דוגמה)", song: "", active: true },
+      { name: "נועה (דוגמה)", song: "חופים", active: true },
       { name: "אבי (דוגמה)", song: "אהבה בסוף הקיץ", active: true },
-      { name: "שירה (דוגמה)", song: "", active: true },
+      { name: "שירה (דוגמה)", song: "חופים", active: true },
       { name: "דודי (דוגמה)", song: "", active: true },
-      { name: "מיכל (דוגמה)", song: "חופים", active: true },
-      { name: "רון (דוגמה)", song: "", active: true },
+      { name: "מיכל (דוגמה)", song: "הללויה", active: true },
+      { name: "רון (דוגמה)", song: "חופים", active: true },
     ],
     history: [],
     onceOnly: true,
@@ -266,7 +388,23 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   let state;
   try { state = JSON.parse(localStorage.getItem(KEY)) || SAMPLE; } catch { state = SAMPLE; }
+  // Fill in fields added after the first version, so saved nights keep working.
+  state.mode = state.mode || "song";
+  state.shirtWins = state.shirtWins || [];
+  state.trivia = state.trivia || { text: SAMPLE_TRIVIA, seconds: 15, qrBetween: true };
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
+
+  const randInt = (n) => {
+    const a = new Uint32Array(1);
+    crypto.getRandomValues(a);
+    return a[0] % n;
+  };
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) { const j = randInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  const typing = () => /INPUT|TEXTAREA/.test(document.activeElement.tagName);
 
   // ---------- WhatsApp chat export parsing ----------
   const BIDI = /[‎‏‪-‮⁦-⁩﻿]/g;
@@ -312,12 +450,12 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   }
 
   function mergePeople(map) {
-    if (state.sample) { state.people = []; state.history = []; state.sample = false; }
+    if (state.sample) { state.people = []; state.history = []; state.shirtWins = []; state.finale = null; state.sample = false; }
     let added = 0;
     for (const [id, { name, song }] of map) {
       const existing = state.people.find((p) => (p.id || p.name) === id);
       if (existing) {
-        state.history.forEach((h) => { if (h.name === existing.name) h.name = name; });
+        [...state.history, ...state.shirtWins].forEach((h) => { if (h.name === existing.name) h.name = name; });
         existing.name = name;
         if (song) existing.song = song;
       } else { state.people.push({ id, name, song, active: true }); added++; }
@@ -364,6 +502,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       const found = fromCSV(await r.text());
       const added = mergePeople(found);
       save(); render();
+      if (state.mode === "finale" && fin.step === 0) renderFinale();
       $("sheetStatus").textContent = `✓ ${found.size} נרשמו בטופס · עודכן ב‑${new Date().toLocaleTimeString("he-IL")}`;
       if (added) toast(`${added} נרשמים חדשים נכנסו להגרלה`);
     } catch {
@@ -371,86 +510,294 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     }
   }
 
-  // ---------- Pool ----------
+  // ---------- Pools ----------
   const wonNames = () => new Set(state.history.map((h) => h.name));
-  const pool = () => {
+  const shirtNames = () => new Set(state.shirtWins.map((h) => h.name));
+  const songPool = () => {
     const won = wonNames();
     return state.people.filter((p) => p.active && !(state.onceOnly && won.has(p.name)));
   };
-  const randInt = (n) => {
-    const a = new Uint32Array(1);
-    crypto.getRandomValues(a);
-    return a[0] % n;
+  const shirtPool = () => {
+    const won = shirtNames();
+    return state.people.filter((p) => p.active && !won.has(p.name));
   };
 
-  // ---------- Rendering ----------
-  function render() {
-    const won = wonNames();
-    const chips = $("chips");
-    chips.innerHTML = "";
-    if (!state.people.length) chips.innerHTML = '<span class="empty">עדיין אין חברים. ייבאו צ׳אט או הדביקו שמות.</span>';
-    state.people.forEach((p, i) => {
-      const el = document.createElement("span");
-      el.className = "chip" + (p.active ? "" : " off") + (won.has(p.name) ? " won" : "");
-      const nameBtn = document.createElement("button");
-      nameBtn.type = "button";
-      nameBtn.className = "name";
-      nameBtn.textContent = p.name;
-      nameBtn.title = p.active ? "הוצאה מההגרלה" : "החזרה להגרלה";
-      nameBtn.onclick = () => { p.active = !p.active; save(); render(); };
-      el.append(nameBtn);
-      if (p.song) { const n = document.createElement("span"); n.className = "note"; n.textContent = "♪"; n.title = p.song; el.append(n); }
-      if (won.has(p.name)) { const n = document.createElement("span"); n.className = "note"; n.textContent = "★"; n.title = "כבר זכה/תה"; el.append(n); }
-      const x = document.createElement("button");
-      x.type = "button"; x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", "הסרת " + p.name);
-      x.onclick = () => { state.people.splice(i, 1); save(); render(); };
-      el.append(x);
-      chips.append(el);
+  // ---------- Trivia ----------
+  function questions() {
+    return state.trivia.text.split(/\r?\n/).map((l) => l.split("|").map((s) => s.trim()).filter(Boolean))
+      .filter((p) => p.length >= 3).map(([q, right, ...wrong]) => ({ q, right, wrong }));
+  }
+  const LETTERS = ["א", "ב", "ג", "ד", "ה", "ו"];
+  const tv = { phase: "idle", order: [], pos: -1, count: 0, until: 0, left: 0, paused: false, choices: [] };
+
+  function tvAdvance() {
+    const qs = questions();
+    if (!qs.length) { toast("אין שאלות. הוסיפו שאלות בפאנל „שאלות החידון”."); return; }
+    const now = Date.now();
+    if (tv.phase === "question") {
+      tv.phase = "reveal"; tv.until = now + 6000;
+      [660, 880].forEach((f, i) => setTimeout(() => beep(f, .25, .1), i * 120));
+    } else if (tv.phase === "reveal" && state.trivia.qrBetween && state.invite && tv.count % 3 === 0) {
+      tv.phase = "qr"; tv.until = now + 12000;
+    } else {
+      tv.pos++;
+      if (tv.pos >= tv.order.length || tv.order.length !== qs.length) { tv.order = shuffle(qs.map((_, i) => i)); tv.pos = 0; }
+      const item = qs[tv.order[tv.pos]];
+      tv.choices = shuffle([{ t: item.right, ok: true }, ...item.wrong.map((t) => ({ t, ok: false }))]);
+      tv.q = item.q;
+      tv.count++;
+      tv.phase = "question"; tv.until = now + state.trivia.seconds * 1000;
+    }
+    tv.paused = false;
+    renderStage();
+  }
+
+  function renderTrivia() {
+    const qs = questions();
+    $("tvFoot").hidden = tv.phase !== "question";
+    const box = $("tvAnswers");
+    box.innerHTML = "";
+    if (tv.phase === "idle") {
+      $("tvEyebrow").textContent = "חידון לפני ההופעה";
+      $("tvQ").textContent = qs.length ? "מתחילים בעוד רגע…" : "עוד אין שאלות לחידון";
+      return;
+    }
+    $("tvEyebrow").textContent = `חידון לפני ההופעה · שאלה ${tv.count}`;
+    $("tvQ").textContent = tv.q;
+    tv.choices.forEach((c, i) => {
+      const el = document.createElement("div");
+      el.className = "ans" + (tv.phase === "reveal" ? (c.ok ? " correct" : " dim") : "");
+      const l = document.createElement("span");
+      l.className = "letter";
+      l.textContent = LETTERS[i];
+      const t = document.createElement("span");
+      t.textContent = c.t;
+      el.append(l, t);
+      box.append(el);
     });
+    tvTick();
+  }
 
-    const inPool = pool().length;
-    $("memberCount").textContent = state.people.length ? `${state.people.length} חברים` : "";
-    $("poolLine").textContent = `${inPool} בכובע` + (state.onceOnly && won.size ? ` · ${won.size} כבר זכו` : "");
-    $("spinBtn").disabled = spinning || inPool === 0;
-    $("spinBtn").textContent = inPool === 0 && state.people.length ? "כולם זכו!" : "הגרילו!";
-    $("onceOnly").checked = state.onceOnly;
-    $("soundBtn").textContent = state.sound ? "🔊 צליל" : "🔇 ללא צליל";
-    $("soundBtn").setAttribute("aria-pressed", String(state.sound));
-    $("qrBtn").hidden = !state.invite;
-    if (document.activeElement !== $("inviteInput")) $("inviteInput").value = state.invite || "";
-    if (document.activeElement !== $("sheetInput")) $("sheetInput").value = state.sheetUrl || "";
+  function tvTick() {
+    if (tv.phase !== "question") return;
+    const left = Math.max(0, tv.paused ? tv.left : tv.until - Date.now());
+    $("tvBar").style.width = (left / (state.trivia.seconds * 1000)) * 100 + "%";
+    $("tvCount").textContent = Math.ceil(left / 1000);
+  }
 
-    const list = $("setlist");
+  setInterval(() => {
+    if (state.mode !== "trivia" || tv.phase === "idle" || tv.paused) return;
+    if (Date.now() >= tv.until) tvAdvance();
+    else tvTick();
+  }, 200);
+
+  // ---------- Finale: the most requested songs ----------
+  const fin = { step: 0, ranking: [] };
+  const songKey = (s) => s.toLowerCase().replace(/["'׳״`.,!?]/g, "").replace(/\s+/g, " ").trim();
+  function ranking() {
+    const map = new Map();
+    for (const p of state.people) {
+      if (!p.song || !p.active) continue;
+      const k = songKey(p.song);
+      if (!k) continue;
+      const e = map.get(k) || { title: p.song.trim(), count: 0 };
+      e.count++;
+      map.set(k, e);
+    }
+    // Shuffle before sorting so ties at the top are broken fairly.
+    return shuffle([...map.values()]).sort((a, b) => b.count - a.count).slice(0, 5);
+  }
+
+  function renderFinale() {
+    if (fin.step === 0) fin.ranking = ranking();
+    const r = fin.ranking, list = $("finList");
     list.innerHTML = "";
-    if (!state.history.length) list.innerHTML = '<li class="empty" style="display:block">עוד לא הוגרל אף אחד.</li>';
-    state.history.forEach((h) => {
+    $("finWinner").hidden = true;
+    if (!r.length) {
+      list.innerHTML = '<li class="empty" style="display:block">עוד אין בקשות שירים. הן מגיעות מהטופס או מהודעות „שיר:” בוואטסאפ.</li>';
+      return;
+    }
+    const max = r[0].count;
+    // Revealed from the bottom up: after step k, the last k places are visible.
+    r.forEach((e, i) => {
+      const shown = i >= r.length - fin.step;
       const li = document.createElement("li");
+      li.className = (shown ? "" : "veiled") + (i === 0 && shown ? " top" : "");
+      const bar = document.createElement("span");
+      bar.className = "bar";
+      bar.style.width = shown ? (e.count / max) * 100 + "%" : "0%";
+      const rank = document.createElement("span");
+      rank.className = "rank";
+      rank.textContent = i + 1;
+      const title = document.createElement("span");
+      title.className = "title";
+      title.textContent = shown ? e.title : "? ? ?";
+      const cnt = document.createElement("span");
+      cnt.className = "cnt";
+      cnt.textContent = shown ? (e.count === 1 ? "בקשה אחת" : `${e.count} בקשות`) : "";
+      li.append(bar, rank, title, cnt);
+      list.append(li);
+    });
+    if (fin.step >= r.length) {
+      $("finWinner").hidden = false;
+      $("finWinner").className = "drum winner";
+      $("finWinner").textContent = r[0].title;
+    }
+  }
+
+  function finaleNext() {
+    if (fin.step === 0) fin.ranking = ranking();
+    const r = fin.ranking;
+    if (!r.length) { toast("אין עדיין בקשות שירים"); return; }
+    if (fin.step >= r.length) { fin.step = 0; renderStage(); return; }
+    fin.step++;
+    if (fin.step === r.length) {
+      state.finale = r[0].title;
+      save();
+      fanfare(); confetti();
+    } else beep(520 + fin.step * 60, .15, .1);
+    renderStage();
+    render();
+  }
+
+  // ---------- Rendering ----------
+  function chip(p, won) {
+    const el = document.createElement("span");
+    el.className = "chip" + (p.active ? "" : " off") + (won ? " won" : "");
+    const nameBtn = document.createElement("button");
+    nameBtn.type = "button";
+    nameBtn.className = "name";
+    nameBtn.textContent = p.name;
+    nameBtn.title = p.active ? "הוצאה מההגרלות" : "החזרה להגרלות";
+    nameBtn.onclick = () => { p.active = !p.active; save(); render(); };
+    el.append(nameBtn);
+    if (p.song) { const n = document.createElement("span"); n.className = "note"; n.textContent = "♪"; n.title = p.song; el.append(n); }
+    if (won) { const n = document.createElement("span"); n.className = "note"; n.textContent = "★"; n.title = "כבר זכה/תה"; el.append(n); }
+    const x = document.createElement("button");
+    x.type = "button"; x.className = "x"; x.textContent = "×"; x.setAttribute("aria-label", "הסרת " + p.name);
+    x.onclick = () => { state.people.splice(state.people.indexOf(p), 1); save(); render(); };
+    el.append(x);
+    return el;
+  }
+
+  function fillList(list, items, emptyText, line) {
+    list.innerHTML = "";
+    if (!items.length) { list.innerHTML = `<li class="empty" style="display:block">${emptyText}</li>`; return; }
+    items.forEach((h) => {
+      const li = document.createElement("li");
+      if (h.finale) li.className = "finale";
       const who = document.createElement("span");
       who.className = "who";
       who.textContent = h.name;
       const what = document.createElement("span");
       what.className = "what";
-      what.textContent = h.song || "השיר עוד לא נבחר";
+      what.textContent = line(h);
       who.append(what);
       const t = document.createElement("time");
-      t.textContent = new Date(h.time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+      if (h.time) t.textContent = new Date(h.time).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
       li.append(who, t);
       list.append(li);
     });
+  }
+
+  function render() {
+    const won = wonNames(), shirts = shirtNames();
+    const chips = $("chips");
+    chips.innerHTML = "";
+    if (!state.people.length) chips.innerHTML = '<span class="empty">עדיין אין משתתפים. חברו את הטופס, ייבאו צ׳אט או הדביקו שמות.</span>';
+    state.people.forEach((p) => chips.append(chip(p, won.has(p.name) || shirts.has(p.name))));
+    $("memberCount").textContent = state.people.length ? `${state.people.length} משתתפים` : "";
+
+    document.querySelectorAll(".mode-btn").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.mode === state.mode)));
+
+    const main = $("mainBtn");
+    const m = state.mode;
+    main.disabled = spinning;
+    if (m === "trivia") {
+      main.textContent = tv.phase === "idle" ? "התחלת החידון" : "הבא";
+      $("poolLine").textContent = `${questions().length} שאלות · ${state.trivia.seconds} שניות לשאלה`;
+    } else if (m === "song") {
+      const n = songPool().length;
+      main.textContent = n === 0 && state.people.length ? "כולם כבר בחרו!" : "הגרילו שיר!";
+      main.disabled ||= n === 0;
+      $("poolLine").textContent = `${n} בכובע` + (state.onceOnly && won.size ? ` · ${won.size} כבר בחרו` : "");
+    } else if (m === "shirt") {
+      const n = shirtPool().length;
+      main.textContent = "הגרילו חולצה!";
+      main.disabled ||= n === 0;
+      $("poolLine").textContent = `${n} בכובע` + (shirts.size === 1 ? " · חולצה אחת חולקה" : shirts.size ? ` · ${shirts.size} חולצות חולקו` : "");
+    } else {
+      const r = fin.ranking.length ? fin.ranking : ranking();
+      const ord = ["הראשון", "השני", "השלישי", "הרביעי", "החמישי"];
+      main.textContent = !r.length ? "אין עדיין בקשות" : fin.step >= r.length ? "שוב מההתחלה" : `חשיפת המקום ${ord[r.length - 1 - fin.step]}`;
+      $("poolLine").textContent = `${state.people.filter((p) => p.song && p.active).length} בקשות שירים`;
+    }
+    $("tvPauseBtn").hidden = m !== "trivia" || tv.phase === "idle";
+    $("tvPauseBtn").textContent = tv.paused ? "המשך" : "עצירה";
+
+    $("onceOnly").checked = state.onceOnly;
+    $("soundBtn").textContent = state.sound ? "🔊 צליל" : "🔇 ללא צליל";
+    $("soundBtn").setAttribute("aria-pressed", String(state.sound));
+    $("qrBtn").hidden = !state.invite;
+    $("qrBtn").textContent = qrOn ? "הסתרת QR" : "QR להצטרפות";
+    if (document.activeElement !== $("inviteInput")) $("inviteInput").value = state.invite || "";
+    if (document.activeElement !== $("sheetInput")) $("sheetInput").value = state.sheetUrl || "";
+    if (document.activeElement !== $("tvSeconds")) $("tvSeconds").value = state.trivia.seconds;
+    $("tvQr").checked = state.trivia.qrBetween;
+    $("tvTotal").textContent = `${questions().length} שאלות`;
+
+    const songs = state.history.slice();
+    if (state.finale) songs.push({ name: "שיר הסיום", song: state.finale, finale: true });
+    fillList($("setlist"), songs, "עוד לא הוגרל אף שיר.", (h) => h.song || "השיר עוד לא נבחר");
     $("setCount").textContent = state.history.length ? `${state.history.length} שירים` : "";
     $("undoBtn").disabled = !state.history.length;
+    fillList($("shirtList"), state.shirtWins, "עוד לא הוגרלה חולצה.", () => "👕 חולצה");
+    $("shirtCount").textContent = state.shirtWins.length ? `${state.shirtWins.length}` : "";
+    $("undoShirtBtn").disabled = !state.shirtWins.length;
+  }
+
+  // Which view the big screen shows.
+  let qrOn = false;
+  function renderStage() {
+    const m = state.mode;
+    const showQr = !!state.invite && (qrOn || (m === "trivia" && tv.phase === "qr"));
+    $("joinBox").hidden = !showQr;
+    $("viewTrivia").hidden = showQr || m !== "trivia";
+    $("viewRaffle").hidden = showQr || (m !== "song" && m !== "shirt");
+    $("viewFinale").hidden = showQr || m !== "finale";
+    if (showQr) drawQr();
+    if (m === "trivia") renderTrivia();
+    if (m === "song" || m === "shirt") showRaffleIdle();
+    if (m === "finale") renderFinale();
+    render();
+  }
+
+  function showRaffleIdle() {
+    if (spinning) return;
+    const list = state.mode === "song" ? state.history : state.shirtWins;
+    const last = list[list.length - 1];
+    if (last) return showWinner(last);
+    $("eyebrow").textContent = state.mode === "song" ? "מי יבחר את השיר הבא?" : "מי זוכה בחולצה?";
+    $("drum").className = "drum";
+    $("drum").textContent = state.mode === "song" ? "?" : "👕";
+    $("songSlot").hidden = true;
+    $("shirtNote").hidden = true;
   }
 
   function showWinner(entry) {
+    const song = state.mode === "song";
     const drum = $("drum");
     drum.className = "drum winner";
     drum.textContent = entry.name;
-    $("eyebrow").textContent = "השיר הבא נבחר על ידי…";
-    $("songSlot").hidden = false;
-    $("songShown").hidden = !entry.song;
-    $("songShown").textContent = entry.song;
-    $("songInput").value = entry.song || "";
-    $("songForm").querySelector("button").textContent = entry.song ? "עדכון" : "שמירה";
+    $("eyebrow").textContent = song ? "השיר הבא נבחר על ידי…" : "החולצה הולכת ל…";
+    $("songSlot").hidden = !song;
+    $("shirtNote").hidden = song;
+    if (song) {
+      $("songShown").hidden = !entry.song;
+      $("songShown").textContent = entry.song;
+      $("songInput").value = entry.song || "";
+      $("songForm").querySelector("button").textContent = entry.song ? "עדכון" : "שמירה";
+    }
   }
 
   // ---------- Sound ----------
@@ -497,31 +844,33 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     step();
   }
 
-  // ---------- Spin ----------
+  // ---------- Raffles (song / shirt) ----------
   let spinning = false;
   function spin() {
-    const candidates = pool();
+    const kind = state.mode;
+    const candidates = kind === "song" ? songPool() : shirtPool();
     if (spinning || !candidates.length) return;
     spinning = true;
-    render();
+    qrOn = false;
+    renderStage();
     const winner = candidates[randInt(candidates.length)];
     const drum = $("drum");
     drum.className = "drum rolling";
     $("songSlot").hidden = true;
-    showJoin(false);
+    $("shirtNote").hidden = true;
     $("eyebrow").textContent = "מערבבים את הכובע…";
-    const names = state.people.filter((p) => p.active).map((p) => p.name);
+    const names = candidates.map((p) => p.name);
     const total = reduced ? 600 : 4200;
     const start = performance.now();
     let last = "";
     const tick = () => {
       const t = (performance.now() - start) / total;
       if (t >= 1) {
-        const entry = { name: winner.name, song: winner.song || "", time: Date.now() };
-        state.history.push(entry);
+        const entry = kind === "song" ? { name: winner.name, song: winner.song || "", time: Date.now() } : { name: winner.name, time: Date.now() };
+        (kind === "song" ? state.history : state.shirtWins).push(entry);
         save();
         spinning = false;
-        showWinner(entry);
+        if (state.mode === kind) showWinner(entry);
         fanfare();
         confetti();
         render();
@@ -537,15 +886,53 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     tick();
   }
 
+  // The one big action of the current segment: Space, Enter, a presentation clicker or the big button.
+  function mainAction() {
+    if (spinning) return;
+    if (state.mode === "trivia") return tvAdvance();
+    if (state.mode === "finale") return finaleNext();
+    spin();
+  }
+
+  function setMode(m) {
+    if (spinning || m === state.mode) return;
+    state.mode = m;
+    qrOn = false;
+    save();
+    renderStage();
+  }
+
   // ---------- Events ----------
-  $("spinBtn").onclick = spin;
+  $("mainBtn").onclick = mainAction;
+  document.querySelectorAll(".mode-btn").forEach((b) => (b.onclick = () => { setMode(b.dataset.mode); b.blur(); }));
   document.addEventListener("keydown", (e) => {
-    // Space, Enter, or a presentation clicker (which sends PageDown/PageUp or arrow keys) starts the raffle from the stage.
+    if (typing()) return;
+    // Presentation clickers send PageDown/PageUp or arrow keys.
     const keys = ["Space", "Enter", "NumpadEnter", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown"];
-    if (keys.includes(e.code) && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); spin(); }
+    if (keys.includes(e.code) && document.activeElement.tagName !== "BUTTON") { e.preventDefault(); mainAction(); }
+    const digit = e.code.match(/^(?:Digit|Numpad)([1-4])$/);
+    if (digit) setMode(["trivia", "song", "shirt", "finale"][digit[1] - 1]);
     if (e.code === "Escape" && document.body.classList.contains("projection")) setProjection(false);
-    if (e.code === "KeyQ" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) showJoin($("joinBox").hidden);
+    if (e.code === "KeyQ") toggleQr();
   });
+
+  $("tvPauseBtn").onclick = () => {
+    if (tv.paused) { tv.until = Date.now() + tv.left; tv.paused = false; }
+    else { tv.left = Math.max(0, tv.until - Date.now()); tv.paused = true; }
+    render();
+  };
+  $("tvSave").onclick = () => {
+    state.trivia.text = $("tvText").value;
+    save();
+    tv.order = [];
+    render();
+    toast(`נשמרו ${questions().length} שאלות`);
+  };
+  $("tvSeconds").onchange = (e) => {
+    state.trivia.seconds = Math.min(120, Math.max(5, Math.round(+e.target.value) || 15));
+    save(); render();
+  };
+  $("tvQr").onchange = (e) => { state.trivia.qrBetween = e.target.checked; save(); };
 
   $("songForm").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -556,7 +943,6 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (p && last.song) p.song = last.song;
     save();
     showWinner(last);
-    $("drum").className = "drum winner";
     render();
   });
 
@@ -565,10 +951,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (!f) return;
     const text = await f.text();
     const found = /\.csv$/i.test(f.name) ? fromCSV(text) : parseChat(text);
-    if (!found.size) { toast("לא נמצאו שמות בקובץ. ודאו שזה קובץ ה‑txt של ייצוא הצ׳אט."); e.target.value = ""; return; }
+    if (!found.size) { toast("לא נמצאו שמות בקובץ. ודאו שזה קובץ ה‑txt של ייצוא הצ׳אט או CSV מהגיליון."); e.target.value = ""; return; }
     const added = mergePeople(found);
-    save(); render();
-    toast(`נוספו ${added} חברים חדשים (${found.size} נמצאו בצ׳אט)`);
+    save(); renderStage();
+    toast(`נוספו ${added} משתתפים חדשים (${found.size} נמצאו בקובץ)`);
     e.target.value = "";
   });
 
@@ -582,32 +968,37 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (!map.size) return;
     const added = mergePeople(map);
     $("addInput").value = "";
-    save(); render();
-    toast(`נוספו ${added} חברים`);
+    save(); renderStage();
+    toast(`נוספו ${added} משתתפים`);
   };
 
   $("onceOnly").onchange = (e) => { state.onceOnly = e.target.checked; save(); render(); };
   $("soundBtn").onclick = () => { state.sound = !state.sound; save(); render(); };
 
-  // Invite link -> QR code on the stage, so the audience can join the group during the show.
-  function showJoin(on) {
-    const box = $("joinBox");
-    box.hidden = !on || !state.invite;
-    if (!box.hidden) {
-      const q = $("qr");
-      q.innerHTML = "";
-      if (window.QRCode) new QRCode(q, { text: state.invite, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
-      else q.textContent = state.invite;
-      $("joinLink").textContent = state.invite;
-    }
-    $("qrBtn").textContent = box.hidden ? "QR להצטרפות" : "הסתרת QR";
+  // Sign-up link -> QR code on the stage.
+  function drawQr() {
+    const q = $("qr");
+    if (q.dataset.for === state.invite) return;
+    q.innerHTML = "";
+    q.dataset.for = state.invite;
+    if (window.QRCode) new QRCode(q, { text: state.invite, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+    else q.textContent = state.invite;
+    $("joinLink").textContent = state.invite;
   }
-  $("qrBtn").onclick = () => showJoin($("joinBox").hidden);
+  function toggleQr() {
+    if (!state.invite || spinning) return;
+    qrOn = !qrOn;
+    renderStage();
+  }
+  $("qrBtn").onclick = toggleQr;
 
   function setProjection(on) {
     document.body.classList.toggle("projection", on);
-    document.activeElement?.blur?.(); // so Space / the clicker reach the raffle right away
+    document.activeElement?.blur?.(); // so Space / the clicker reach the stage right away
   }
+  $("projBtn").onclick = () => setProjection(true);
+  $("projExit").onclick = () => setProjection(false);
+
   $("sheetForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("sheetInput").value.trim();
@@ -616,40 +1007,34 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     save();
     pullSheet();
   });
-  $("projBtn").onclick = () => setProjection(true);
-  $("projExit").onclick = () => setProjection(false);
   $("inviteForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("inviteInput").value.trim();
     if (v && !/^https:\/\/\S+$/.test(v)) { toast("הדביקו לינק מלא שמתחיל ב‑https://"); return; }
     state.invite = v;
-    save(); render(); showJoin(!!v);
+    qrOn = !!v;
+    save(); renderStage();
     toast(v ? "הלינק נשמר. ה‑QR מוצג על הבמה" : "הלינק הוסר");
   });
 
-  $("undoBtn").onclick = () => {
-    if (!state.history.length) return;
-    state.history.pop();
-    save();
-    const prev = state.history[state.history.length - 1];
-    if (prev) showWinner(prev);
-    else { $("drum").className = "drum"; $("drum").textContent = "?"; $("songSlot").hidden = true; }
-    render();
-  };
+  $("undoBtn").onclick = () => { state.history.pop(); save(); renderStage(); };
+  $("undoShirtBtn").onclick = () => { state.shirtWins.pop(); save(); renderStage(); };
 
   $("clearAllBtn").onclick = () => { $("clearConfirm").hidden = false; };
   $("clearNo").onclick = () => { $("clearConfirm").hidden = true; };
   $("clearYes").onclick = () => {
-    state = { people: [], history: [], onceOnly: state.onceOnly, sound: state.sound, sample: false };
+    Object.assign(state, { people: [], history: [], shirtWins: [], finale: null, sample: false });
+    fin.step = 0;
     save();
     $("clearConfirm").hidden = true;
-    $("drum").className = "drum"; $("drum").textContent = "?"; $("songSlot").hidden = true;
-    render();
+    renderStage();
   };
 
   $("copyBtn").onclick = () => {
-    const text = "🎤 הסט־ליסט של הערב\n" + state.history.map((h, i) => `${i + 1}. ${h.name}${h.song ? " – " + h.song : ""}`).join("\n");
-    if (!state.history.length) return;
+    if (!state.history.length && !state.finale) return;
+    let text = "🎤 הסט־ליסט של הערב\n" + state.history.map((h, i) => `${i + 1}. ${h.name}${h.song ? " – " + h.song : ""}`).join("\n");
+    if (state.finale) text += `\n⭐ שיר הסיום: ${state.finale}`;
+    if (state.shirtWins.length) text += `\n👕 זכו בחולצה: ${state.shirtWins.map((h) => h.name).join(", ")}`;
     navigator.clipboard?.writeText(text).then(() => toast("הועתק! אפשר להדביק בקבוצה"), () => toast("ההעתקה נחסמה בדפדפן הזה"))
       ?? toast("ההעתקה לא נתמכת בדפדפן הזה");
   };
@@ -674,9 +1059,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     toastTimer = setTimeout(() => (t.hidden = true), 2800);
   }
 
-  const lastWin = state.history[state.history.length - 1];
-  if (lastWin) showWinner(lastWin);
-  render();
+  $("tvText").value = state.trivia.text;
+  renderStage();
 
   pullSheet();
   setInterval(pullSheet, 15000);
