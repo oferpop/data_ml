@@ -136,6 +136,23 @@ textarea { min-height: 84px; resize: vertical; }
 .join-link { color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; direction: ltr; }
 .invite-form { display: flex; gap: 8px; }
 .invite-form input { flex: 1; min-width: 0; direction: ltr; text-align: left; }
+/* Projection mode: a clean black window for capture into Resolume (black keys out with Add/Screen blending). */
+.proj-exit { display: none; }
+html:has(body.projection) { background: #000; }
+body.projection { padding: 0; margin: 0; background: #000; }
+body.projection .wrap { max-width: none; }
+body.projection header, body.projection .panels, body.projection .stage > .row,
+body.projection .song-form, body.projection .stage-actions { display: none; }
+body.projection .stage { min-height: 100vh; border: 0; border-radius: 0; background: #000; align-content: center; }
+body.projection .eyebrow { font-size: 1.4rem; }
+body.projection .drum { font-size: clamp(5rem, 16vw, 14rem); }
+body.projection .proj-exit {
+  display: block; position: fixed; z-index: 5;
+  top: calc(8px + env(safe-area-inset-top, 0px)); left: calc(8px + env(safe-area-inset-left, 0px));
+  background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px;
+  padding: 4px 10px; font-size: .8rem; opacity: .3;
+}
+body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .drum.winner { animation: none; } }
 </style>
 
@@ -169,6 +186,7 @@ textarea { min-height: 84px; resize: vertical; }
       <button class="btn small" id="soundBtn" type="button" aria-pressed="true">🔊 צליל</button>
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
       <button class="btn small" id="qrBtn" type="button" hidden>QR להצטרפות</button>
+      <button class="btn small" id="projBtn" type="button">מצב הקרנה (Resolume)</button>
     </div>
   </section>
 
@@ -217,6 +235,7 @@ textarea { min-height: 84px; resize: vertical; }
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
+<button class="proj-exit" id="projExit" type="button">יציאה ממצב הקרנה (Esc)</button>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
@@ -471,6 +490,8 @@ textarea { min-height: 84px; resize: vertical; }
     // Space, Enter, or a presentation clicker (which sends PageDown/PageUp or arrow keys) starts the raffle from the stage.
     const keys = ["Space", "Enter", "NumpadEnter", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown"];
     if (keys.includes(e.code) && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); spin(); }
+    if (e.code === "Escape" && document.body.classList.contains("projection")) setProjection(false);
+    if (e.code === "KeyQ" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) showJoin($("joinBox").hidden);
   });
 
   $("songForm").addEventListener("submit", (e) => {
@@ -529,6 +550,13 @@ textarea { min-height: 84px; resize: vertical; }
     $("qrBtn").textContent = box.hidden ? "QR להצטרפות" : "הסתרת QR";
   }
   $("qrBtn").onclick = () => showJoin($("joinBox").hidden);
+
+  function setProjection(on) {
+    document.body.classList.toggle("projection", on);
+    document.activeElement?.blur?.(); // so Space / the clicker reach the raffle right away
+  }
+  $("projBtn").onclick = () => setProjection(true);
+  $("projExit").onclick = () => setProjection(false);
   $("inviteForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("inviteInput").value.trim();
