@@ -468,7 +468,9 @@ textarea { min-height: 84px; resize: vertical; }
   // ---------- Events ----------
   $("spinBtn").onclick = spin;
   document.addEventListener("keydown", (e) => {
-    if (e.code === "Space" && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); spin(); }
+    // Space, Enter, or a presentation clicker (which sends PageDown/PageUp or arrow keys) starts the raffle from the stage.
+    const keys = ["Space", "Enter", "NumpadEnter", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown"];
+    if (keys.includes(e.code) && !/INPUT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); spin(); }
   });
 
   $("songForm").addEventListener("submit", (e) => {
