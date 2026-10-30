@@ -220,11 +220,11 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 <div class="wrap">
   <header>
     <h1>ערב <span>הופעה</span></h1>
-    <p class="tagline">חידון לפני, הגרלות באמצע, והקהל בוחר את שיר הסיום.</p>
+    <p class="tagline">חידון ביטלס לפני, הגרלות באמצע, והקהל בוחר את שיר הסיום.</p>
   </header>
 
   <nav class="modes" role="tablist" aria-label="חלקי הערב">
-    <button class="mode-btn" role="tab" data-mode="trivia" type="button"><b>חידון טריוויה</b><small>לפני ההופעה<kbd>1</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="trivia" type="button"><b>חידון ביטלס</b><small>לפני ההופעה<kbd>1</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="song" type="button"><b>הגרלת שיר</b><small>באמצע ההופעה<kbd>2</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="shirt" type="button"><b>הגרלת חולצה</b><small>באמצע ההופעה<kbd>3</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="finale" type="button"><b>שיר הסיום</b><small>הכי מבוקש הערב<kbd>4</kbd></small></button>
@@ -234,7 +234,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     <canvas id="confetti" aria-hidden="true"></canvas>
 
     <div class="view" id="viewTrivia">
-      <div class="eyebrow" id="tvEyebrow">חידון לפני ההופעה</div>
+      <div class="eyebrow" id="tvEyebrow">חידון ביטלס</div>
       <div class="tv-q" id="tvQ"></div>
       <div class="tv-answers" id="tvAnswers"></div>
       <div class="tv-foot" id="tvFoot" hidden>
@@ -338,8 +338,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     </div>
 
     <section class="panel wide" aria-labelledby="tvTitle">
-      <h2 id="tvTitle">שאלות החידון <small id="tvTotal"></small></h2>
-      <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. התשובות מתערבבות על המסך. אלה שאלות לדוגמה על מוזיקה. כדאי להחליף אותן בשאלות על הלהקה ועל השירים שלכם.</p>
+      <h2 id="tvTitle">שאלות חידון הביטלס <small id="tvTotal"></small></h2>
+      <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. התשובות מתערבבות על המסך והשאלות מוגרלות בסדר אקראי. אפשר לערוך, להוסיף ולמחוק שאלות.</p>
       <textarea id="tvText" spellcheck="false"></textarea>
       <div class="row">
         <button class="btn primary" id="tvSave" type="button">שמירת השאלות</button>
@@ -359,16 +359,31 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   const $ = (id) => document.getElementById(id);
 
   const SAMPLE_TRIVIA = [
-    "מי כתבה את „ירושלים של זהב”? | נעמי שמר | עפרה חזה | שלמה ארצי | יהורם גאון",
-    "באיזו שנה זכתה נטע ברזילי באירוויזיון עם „Toy”? | 2018 | 2016 | 2019 | 2014",
-    "עם איזה שיר זכתה דנה אינטרנשיונל באירוויזיון 1998? | Diva | Toy | הללויה | אבניבי",
-    "מי ביצעו את „הללויה” שזכה באירוויזיון 1979? | גלי עטרי וחלב ודבש | יזהר כהן והאלפבתא | להקת הנח״ל | כוורת",
-    "מאיזו מדינה הגיעה להקת ABBA? | שוודיה | נורווגיה | דנמרק | הולנד",
-    "איזו להקה הוציאה את האלבום Abbey Road? | הביטלס | הרולינג סטונס | קווין | פינק פלויד",
-    "מי היה הסולן של להקת קווין? | פרדי מרקיורי | מיק ג׳אגר | בונו | רוברט פלאנט",
     "מאיזו עיר הגיעו הביטלס? | ליברפול | לונדון | מנצ׳סטר | ברמינגהם",
-    "כמה מיתרים יש לגיטרה רגילה? | 6 | 4 | 5 | 7",
-    "כמה קווים יש בחמשה של תווים? | 5 | 4 | 6 | 7",
+    "מי היה המתופף של הביטלס? | רינגו סטאר | צ׳ארלי ווטס | קית׳ מון | ג׳ון בונהאם",
+    "באיזה מועדון בליברפול הופיעו הביטלס מאות פעמים? | הקאוורן | המרקי | הרוקסי | הסטאר קלאב",
+    "באיזו עיר בגרמניה הופיעו הביטלס בתחילת דרכם? | המבורג | ברלין | מינכן | פרנקפורט",
+    "מה היה הסינגל הראשון של הביטלס בבריטניה, ב‑1962? | Love Me Do | Please Please Me | She Loves You | From Me to You",
+    "מה שם האלבום הראשון של הביטלס? | Please Please Me | With the Beatles | Help! | Revolver",
+    "מי היה המנהל של הביטלס בשנות ההצלחה הראשונות? | בריאן אפשטיין | ג׳ורג׳ מרטין | אנדרו לוג אולדהם | פיטר גרנט",
+    "מי היה המפיק המוזיקלי של רוב שירי הביטלס? | ג׳ורג׳ מרטין | בריאן אפשטיין | ריק רובין | קווינסי ג׳ונס",
+    "באיזו תוכנית טלוויזיה אמריקאית הופיעו הביטלס בפברואר 1964, מול כ‑73 מיליון צופים? | The Ed Sullivan Show | The Tonight Show | American Bandstand | Saturday Night Live",
+    "באיזה כלי ניגן פול מקרטני בעיקר בביטלס? | גיטרה בס | תופים | גיטרה מובילה | סקסופון",
+    "מי כתב ושר את „Something”? | ג׳ורג׳ הריסון | ג׳ון לנון | פול מקרטני | רינגו סטאר",
+    "איזה מהשירים האלה שר רינגו סטאר? | Yellow Submarine | Let It Be | Help! | Come Together",
+    "מה זה Abbey Road, שעל שמו נקרא האלבום? | הרחוב בלונדון שבו נמצא האולפן שלהם | מנזר בליברפול | פאב בהמבורג | הכינוי של רינגו",
+    "כמה מחברי הלהקה חוצים את מעבר החצייה על עטיפת Abbey Road? | 4 | 3 | 2 | 5",
+    "Strawberry Field מהשיר „Strawberry Fields Forever” היה… | בית ילדים בליברפול | חווה בסקוטלנד | פארק בניו יורק | מועדון בלונדון",
+    "איפה נתנו הביטלס את ההופעה הפומבית האחרונה שלהם, בינואר 1969? | על גג משרדי אפל בלונדון | באצטדיון שיאה בניו יורק | במועדון הקאוורן | ברויאל אלברט הול",
+    "באיזו שנה התפרקו הביטלס? | 1970 | 1966 | 1968 | 1974",
+    "איך נקראה חברת התקליטים שהקימו הביטלס? | Apple | Island | Motown | Virgin",
+    "לאיזו מדינה נסעו הביטלס ב‑1968 כדי ללמוד מדיטציה? | הודו | נפאל | יפן | תאילנד",
+    "מה שם הסרט המצויר של הביטלס מ‑1968? | Yellow Submarine | Help! | A Hard Day׳s Night | Let It Be",
+    "איזה שיר נכתב לג׳וליאן, הבן של ג׳ון לנון? | Hey Jude | Let It Be | Michelle | Yesterday",
+    "בשיר „Let It Be”, מי באה אל פול בשעות קשות? | Mother Mary | Lucy | Michelle | Eleanor Rigby",
+    "מה השם האמיתי של רינגו סטאר? | ריצ׳רד סטארקי | רוברט סטאר | ריצ׳רד סטאר | רוני סטארקי",
+    "באיזו שנה יצא האלבום Sgt. Pepper׳s Lonely Hearts Club Band? | 1967 | 1965 | 1969 | 1963",
+    "איך נקרא באמת „האלבום הלבן” של הביטלס? | The Beatles | Revolver | Rubber Soul | Abbey Road",
   ].join("\n");
 
   const SAMPLE = {
@@ -392,6 +407,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   state.mode = state.mode || "song";
   state.shirtWins = state.shirtWins || [];
   state.trivia = state.trivia || { text: SAMPLE_TRIVIA, seconds: 15, qrBetween: true };
+  // The first version shipped general music questions; the quiz is Beatles-only now.
+  if (state.trivia.text.startsWith("מי כתבה את „ירושלים של זהב”?")) state.trivia.text = SAMPLE_TRIVIA;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
 
   const randInt = (n) => {
@@ -558,11 +575,11 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     const box = $("tvAnswers");
     box.innerHTML = "";
     if (tv.phase === "idle") {
-      $("tvEyebrow").textContent = "חידון לפני ההופעה";
+      $("tvEyebrow").textContent = "חידון ביטלס";
       $("tvQ").textContent = qs.length ? "מתחילים בעוד רגע…" : "עוד אין שאלות לחידון";
       return;
     }
-    $("tvEyebrow").textContent = `חידון לפני ההופעה · שאלה ${tv.count}`;
+    $("tvEyebrow").textContent = `חידון ביטלס · שאלה ${tv.count}`;
     $("tvQ").textContent = tv.q;
     tv.choices.forEach((c, i) => {
       const el = document.createElement("div");
