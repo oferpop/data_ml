@@ -1449,7 +1449,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   function slideNext() {
     const list = onAir();
-    $("photoEmpty").textContent = list.length ? "" : "עוד אין תמונות על המסך. שלחו תמונה דרך ה‑QR (מקש Q) או הוסיפו מהמחשב.";
+    const waiting = allPhotos().filter((p) => p.status === "pending").length;
+    $("photoEmpty").textContent = list.length ? "" : waiting
+      ? `${waiting} תמונות ממתינות לאישור. אשרו אותן (✓ למסך) בפאנל „קיר תמונות” למטה.`
+      : "עוד אין תמונות על המסך. שלחו תמונה דרך ה‑QR (מקש Q) או הוסיפו מהמחשב.";
     $("photoWall").hidden = !list.length;
     if (!list.length) { slideIdx = -1; return; }
     slideIdx = (slideIdx + 1) % list.length;
@@ -1595,7 +1598,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
           status: x.status === "approved" || x.status === "hidden" ? x.status : "pending" };
       }).filter((p) => p.url);
       const fresh = before.size ? dbPhotos.filter((p) => !before.has(p.id)).length : 0;
-      if (fresh) toast(`📸 ${fresh} תמונות חדשות מהקהל`);
+      if (fresh) toast(`📸 ${fresh} תמונות חדשות מהקהל ממתינות לאישור`);
+      if (state.mode === "photos" && !onAir().length) slideNext();
       renderPhotos(); render();
     });
     let first = true;
