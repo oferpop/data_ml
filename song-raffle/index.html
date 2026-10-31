@@ -161,7 +161,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-w
 .panel h2 { margin: 0; font-size: 1.15rem; font-weight: 800; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel h2 small { color: var(--muted); font-weight: 400; font-size: .9rem; font-variant-numeric: tabular-nums; }
 .hint { color: var(--muted); font-size: .9rem; margin: 0; }
-input[type="text"], input[type="number"], textarea {
+input[type="text"], input[type="number"], input[type="tel"], textarea {
   font: inherit; color: var(--ink); background: var(--stage); border: 1px solid var(--line);
   border-radius: 10px; padding: 9px 12px; width: 100%;
 }
@@ -196,6 +196,32 @@ textarea { min-height: 84px; resize: vertical; }
 .confirm { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .9rem; }
 .invite-form { display: flex; gap: 8px; }
 .invite-form input { flex: 1; min-width: 0; direction: ltr; text-align: left; }
+
+/* Demo sign-up page (#join): what an audience member sees on the phone. */
+a.btn { text-decoration: none; display: inline-block; }
+select {
+  font: inherit; color: var(--ink); background: var(--stage); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px 12px; width: 100%;
+}
+.join-page { display: none; }
+body.join-mode .wrap, body.join-mode .proj-exit { display: none !important; }
+body.join-mode .join-page { display: grid; gap: 18px; max-width: 520px; margin: 0 auto; }
+.jp-head { display: grid; gap: 6px; }
+.jp-head p { margin: 0; }
+.jp-demo { font-size: .85rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; }
+.jp-form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; font-weight: 600; }
+.jp-form .toggle { align-items: flex-start; font-weight: 400; }
+.jp-form .toggle input { flex: none; margin-top: 3px; }
+.jp-quiz { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 16px; margin: 0; min-width: 0; }
+.jp-quiz legend { font-weight: 800; padding: 0 6px; }
+.jp-q p { margin: 0 0 4px; font-weight: 600; }
+.jp-q label { display: flex; gap: 10px; align-items: center; padding: 5px 0; }
+.jp-q input[type="radio"] { accent-color: var(--spot); width: 18px; height: 18px; flex: none; }
+.jp-error { color: var(--danger); margin: 0; }
+.jp-done { display: grid; gap: 14px; justify-items: center; text-align: center; padding-block: 24px; }
+.jp-done .drum { font-size: clamp(3rem, 16vw, 5rem); }
+.jp-done p { margin: 0; font-size: 1.15rem; }
 
 /* Projection mode: a clean black window for capture into Resolume (black keys out with Add/Screen blending). */
 .proj-exit { display: none; }
@@ -279,7 +305,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <button class="btn small" id="tvBoardBtn" type="button" hidden>טבלת המובילים</button>
       <button class="btn small" id="soundBtn" type="button" aria-pressed="true">🔊 צליל</button>
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
-      <button class="btn small" id="qrBtn" type="button" hidden>QR להצטרפות</button>
+      <button class="btn small" id="qrBtn" type="button">QR להצטרפות</button>
       <button class="btn small" id="projBtn" type="button">מצב הקרנה (Resolume)</button>
     </div>
   </section>
@@ -293,6 +319,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <button class="btn primary" type="submit">חיבור</button>
       </form>
       <div class="pool-line" id="sheetStatus"></div>
+      <div class="row">
+        <a class="btn small" href="#join">פתיחת דף ההרשמה (דמו)</a>
+        <span class="pool-line" id="dbStatus"></span>
+      </div>
       <label class="hint" for="venueInput"><b>איפה מופיעים הערב?</b> מעדכנים לפני כל הופעה. המקום נכנס ללינק ול‑QR, וכל מי שנרשם הערב מסומן איתו.</label>
       <form class="invite-form" id="venueForm">
         <input type="text" id="venueInput" placeholder="למשל: בארבי, תל אביב" autocomplete="off" style="direction:rtl;text-align:right">
@@ -361,6 +391,36 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     </section>
   </div>
 </div>
+<main class="join-page" id="joinPage">
+  <div class="jp-head">
+    <div class="eyebrow">ערב ביטלס · הרשמה להגרלות</div>
+    <h1>בוחרים <span>שיר</span></h1>
+    <p class="hint" id="jpVenue"></p>
+    <p class="jp-demo">דף הדגמה: הפרטים נשמרים במסד נתונים זמני של הדף, כדי לנסות את הערב מהצד של הקהל.</p>
+  </div>
+  <form class="jp-form" id="jpForm" novalidate>
+    <label class="field" for="jpName">השם שיוצג על המסך<input type="text" id="jpName" maxlength="30" autocomplete="off"></label>
+    <label class="field" for="jpSong">איזה שיר של הביטלס הייתם רוצים לבחור?<select id="jpSong"></select></label>
+    <label class="field" for="jpPhone">טלפון נייד (לעדכונים בוואטסאפ)<input type="tel" id="jpPhone" inputmode="tel" placeholder="050-1234567" autocomplete="off" style="direction:ltr;text-align:right"></label>
+    <label class="field" for="jpCity">באיזו עיר אתם גרים?<input type="text" id="jpCity" autocomplete="off"></label>
+    <label class="field" for="jpArea">באיזה אזור?<select id="jpArea"></select></label>
+    <label class="toggle" for="jpConsent"><input type="checkbox" id="jpConsent"> אני מאשר/ת להשתתף בהגרלה, ושהשם והשיר שבחרתי יוצגו על המסך בהופעה.</label>
+    <label class="toggle" for="jpUpdates"><input type="checkbox" id="jpUpdates"> אני מסכים/ה לקבל הודעות בוואטסאפ על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת.</label>
+    <fieldset class="jp-quiz">
+      <legend>🎸 חידון ביטלס (לא חובה)</legend>
+      <div id="jpQuiz" style="display:grid;gap:16px"></div>
+    </fieldset>
+    <p class="jp-error" id="jpError" hidden></p>
+    <button class="btn-spin" id="jpSubmit" type="submit">נרשמים!</button>
+  </form>
+  <div class="jp-done" id="jpDone" hidden>
+    <div class="drum winner">נרשמת! 🎶</div>
+    <p id="jpScore"></p>
+    <p>תסתכלו על המסך. אולי תזכו לבחור את השיר הבא!</p>
+    <button class="btn" id="jpAgain" type="button">הרשמה של משתתף נוסף (לבדיקה)</button>
+  </div>
+  <a class="hint" href="#">← למסך ההופעה</a>
+</main>
 <div class="toast" id="toast" hidden></div>
 <button class="proj-exit" id="projExit" type="button">יציאה ממצב הקרנה (Esc)</button>
 
@@ -368,6 +428,9 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 <script>
 (() => {
   const KEY = "song-raffle-v1";
+  // The demo sign-up page lives in this same artifact, at #join; its sign-ups go to the page's own database.
+  const DEMO_JOIN_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#join";
+  const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
   const $ = (id) => document.getElementById(id);
 
   const SAMPLE_TRIVIA = [
@@ -629,7 +692,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (tv.phase === "question") {
       tv.phase = "reveal"; tv.until = now + 6000;
       [660, 880].forEach((f, i) => setTimeout(() => beep(f, .25, .1), i * 120));
-    } else if (tv.phase === "reveal" && state.trivia.qrBetween && state.invite && tv.count % 3 === 0) {
+    } else if (tv.phase === "reveal" && state.trivia.qrBetween && tv.count % 3 === 0) {
       tv.phase = "qr"; tv.until = now + 12000;
     } else if (tv.phase === "reveal" && tv.count % 3 === 2 && leaders().length) {
       tv.phase = "board"; tv.until = now + 12000;
@@ -868,7 +931,6 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     $("onceOnly").checked = state.onceOnly;
     $("soundBtn").textContent = state.sound ? "🔊 צליל" : "🔇 ללא צליל";
     $("soundBtn").setAttribute("aria-pressed", String(state.sound));
-    $("qrBtn").hidden = !state.invite;
     $("qrBtn").textContent = qrOn ? "הסתרת QR" : "QR להצטרפות";
     if (document.activeElement !== $("inviteInput")) $("inviteInput").value = state.invite || "";
     if (document.activeElement !== $("venueInput")) $("venueInput").value = state.venue || "";
@@ -892,7 +954,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   let qrOn = false;
   function renderStage() {
     const m = state.mode;
-    const showQr = !!state.invite && (qrOn || (m === "trivia" && tv.phase === "qr"));
+    const showQr = qrOn || (m === "trivia" && tv.phase === "qr");
     $("joinBox").hidden = !showQr;
     $("viewTrivia").hidden = showQr || m !== "trivia";
     $("viewRaffle").hidden = showQr || (m !== "song" && m !== "shirt");
@@ -1116,19 +1178,21 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   // Tonight's sign-up link: the form link from the script carries a __CLUB__ placeholder that becomes the venue.
   const tonightUrl = () => (state.invite || "").replace(/__CLUB__/g, encodeURIComponent(state.venue || ""));
   const needsVenue = () => /__CLUB__/.test(state.invite || "") && !state.venue;
+  // No form link yet: the QR leads to the demo sign-up page.
+  const qrTarget = () => (state.invite ? tonightUrl() : DEMO_JOIN_URL);
 
   // Sign-up link -> QR code on the stage.
   function drawQr() {
-    const q = $("qr"), url = tonightUrl();
+    const q = $("qr"), url = qrTarget();
     if (q.dataset.for === url) return;
     q.innerHTML = "";
     q.dataset.for = url;
     if (window.QRCode) new QRCode(q, { text: url, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
     else q.textContent = url;
-    $("joinLink").textContent = state.venue ? "📍 " + state.venue : url.length <= 45 ? url : "";
+    $("joinLink").textContent = state.venue ? "📍 " + state.venue : state.invite ? "" : "דף ההרשמה (דמו)";
   }
   function toggleQr() {
-    if (!state.invite || spinning) return;
+    if (spinning) return;
     qrOn = !qrOn;
     renderStage();
   }
@@ -1153,12 +1217,12 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     e.preventDefault();
     state.venue = $("venueInput").value.trim();
     save(); renderStage();
+    dbReady.then((db) => db?.doc("show/current").set({ venue: state.venue }).catch(() => {}));
     toast(state.venue ? `ההופעה הערב: ${state.venue}` : "המקום נמחק");
   });
   $("copyLinkBtn").onclick = () => {
-    if (!state.invite) return toast("קודם הדביקו את הלינק שהקהל יסרוק");
     if (needsVenue()) return toast("קודם כתבו איפה מופיעים הערב");
-    navigator.clipboard?.writeText(tonightUrl()).then(() => toast("הלינק הועתק. אפשר להדביק בוואטסאפ"), () => toast("ההעתקה נחסמה בדפדפן הזה"))
+    navigator.clipboard?.writeText(qrTarget()).then(() => toast("הלינק הועתק. אפשר להדביק בוואטסאפ"), () => toast("ההעתקה נחסמה בדפדפן הזה"))
       ?? toast("ההעתקה לא נתמכת בדפדפן הזה");
   };
   $("inviteForm").addEventListener("submit", (e) => {
@@ -1212,6 +1276,118 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (t.hidden = true), 2800);
   }
+
+  // ---------- Demo sign-up page (#join) ----------
+  const QUIZ = [
+    { q: "מי מהביטלס נולד ראשון?", right: "רינגו סטאר", wrong: ["ג׳ון לנון", "פול מקרטני", "ג׳ורג׳ הריסון"] },
+    { q: "מי היה הצעיר בביטלס?", right: "ג׳ורג׳ הריסון", wrong: ["פול מקרטני", "רינגו סטאר", "ג׳ון לנון"] },
+    { q: "איך נקראה הלהקה של ג׳ון לנון לפני הביטלס?", right: "The Quarrymen", wrong: ["Wings", "The Hollies", "The Searchers"] },
+    { q: "איך נקראה הלהקה שהקים פול מקרטני אחרי הביטלס?", right: "Wings", wrong: ["Cream", "Traveling Wilburys", "Plastic Ono Band"] },
+    { q: "באיזה סרט מ‑1964 הביטלס בורחים ממעריצות ברחבי לונדון?", right: "A Hard Day's Night", wrong: ["Help!", "Let It Be", "Magical Mystery Tour"] },
+    { q: "איזה שיר של הביטלס נחשב לשיר עם הכי הרבה גרסאות כיסוי?", right: "Yesterday", wrong: ["Let It Be", "Hey Jude", "Michelle"] },
+    { q: "מי מהביטלס הכניס את הסיטאר ההודי לשירי הלהקה?", right: "ג׳ורג׳ הריסון", wrong: ["ג׳ון לנון", "פול מקרטני", "רינגו סטאר"] },
+    { q: "איך ממשיכה השורה „Ob-la-di, ob-la-da, life goes…”?", right: "on", wrong: ["by", "home", "away"] },
+    { q: "באיזה אצטדיון בניו יורק הופיעו הביטלס ב‑1965 מול יותר מ‑55 אלף איש?", right: "Shea Stadium", wrong: ["Yankee Stadium", "Madison Square Garden", "Wembley"] },
+    { q: "באיזו שנה נרצח ג׳ון לנון?", right: "1980", wrong: ["1975", "1985", "1970"] },
+  ];
+  const AREAS = ["צפון", "חיפה והקריות", "שרון", "מרכז / גוש דן", "ירושלים והסביבה", "שפלה", "דרום", "אילת והערבה"];
+  const opt = (v, label = v) => Object.assign(document.createElement("option"), { value: v, textContent: label });
+  let joinBuilt = false;
+
+  function buildJoin() {
+    if (!joinBuilt) {
+      joinBuilt = true;
+      $("jpSong").append(opt("", "בחרו שיר…"), ...BEATLES_SONGS.map((t) => opt(t)));
+      $("jpArea").append(opt("", "בחרו אזור…"), ...AREAS.map((t) => opt(t)));
+      QUIZ.forEach((item, i) => {
+        const box = document.createElement("div");
+        box.className = "jp-q";
+        const q = document.createElement("p");
+        q.textContent = `${i + 1}. ${item.q}`;
+        box.append(q);
+        shuffle([item.right, ...item.wrong]).forEach((a, j) => {
+          const l = document.createElement("label");
+          const r = Object.assign(document.createElement("input"), { type: "radio", name: "q" + i, value: a, id: `jpq${i}_${j}` });
+          l.htmlFor = r.id;
+          l.append(r, document.createTextNode(a));
+          box.append(l);
+        });
+        $("jpQuiz").append(box);
+      });
+    }
+    $("jpVenue").textContent = "";
+    dbReady.then(async (db) => {
+      if (!db) { jpError("דף ההרשמה לדמו עובד רק כשהוא פתוח ב‑claude.ai, כשאתם מחוברים לחשבון."); $("jpSubmit").disabled = true; return; }
+      try {
+        const d = await db.doc("show/current").get();
+        const v = d.exists ? d.data().venue : "";
+        if (v) $("jpVenue").textContent = "📍 ההופעה הערב: " + v;
+      } catch {}
+    });
+  }
+
+  function jpError(msg) { $("jpError").textContent = msg; $("jpError").hidden = !msg; }
+
+  $("jpForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("jpName").value.trim(), song = $("jpSong").value, city = $("jpCity").value.trim(), area = $("jpArea").value;
+    const phone = $("jpPhone").value.trim(), updates = $("jpUpdates").checked;
+    if (!name || !song || !city || !area) return jpError("נא למלא שם, שיר, עיר ואזור.");
+    if (!$("jpConsent").checked) return jpError("כדי להשתתף בהגרלה צריך לסמן את אישור ההשתתפות.");
+    if (updates && !/^(\+972-?|0)5\d[- ]?\d{3}[- ]?\d{4}$/.test(phone)) return jpError("לקבלת עדכונים צריך מספר נייד, למשל 050-1234567.");
+    jpError("");
+    const score = QUIZ.filter((q, i) => document.querySelector(`input[name="q${i}"]:checked`)?.value === q.right).length;
+    const db = await dbReady;
+    if (!db) return jpError("אין חיבור למסד הנתונים. פתחו את הדף ב‑claude.ai כשאתם מחוברים.");
+    $("jpSubmit").disabled = true;
+    try {
+      let venue = "";
+      try { const d = await db.doc("show/current").get(); venue = d.exists ? d.data().venue || "" : ""; } catch {}
+      await db.collection("signups").add({ name, song, phone, city, area, venue, updates, score, time: Date.now() });
+      $("jpForm").hidden = true;
+      $("jpDone").hidden = false;
+      $("jpScore").textContent = `הניקוד שלך בחידון: ${score} מתוך 10`;
+    } catch (err) {
+      jpError(err?.code === "quota_exceeded" ? "מסד הנתונים של הדמו מלא." : "ההרשמה לא נשמרה. נסו שוב בעוד רגע.");
+    } finally {
+      $("jpSubmit").disabled = false;
+    }
+  });
+  $("jpAgain").onclick = () => {
+    $("jpForm").reset();
+    $("jpForm").hidden = false;
+    $("jpDone").hidden = true;
+    window.scrollTo(0, 0);
+  };
+
+  function applyRoute() {
+    const join = location.hash === "#join";
+    document.body.classList.toggle("join-mode", join);
+    if (join) buildJoin();
+  }
+  window.addEventListener("hashchange", applyRoute);
+  applyRoute();
+
+  // The show screen hears demo sign-ups live and adds them to the raffles.
+  dbReady.then((db) => {
+    if (!db) return;
+    let first = true;
+    db.collection("signups").onSnapshot((snap) => {
+      const found = new Map();
+      snap.docs.forEach((d) => {
+        const x = d.data() || {};
+        if (!x.name) return;
+        found.set("db:" + d.id, { name: String(x.name).slice(0, 30), song: String(x.song || "").slice(0, 80), score: typeof x.score === "number" ? x.score : null });
+      });
+      $("dbStatus").textContent = found.size ? `📱 ${found.size} נרשמו בדף ההרשמה` : "📱 עוד אין נרשמים בדף ההרשמה";
+      if (!found.size) return;
+      const added = mergePeople(found);
+      save(); render();
+      if (state.mode === "finale" && fin.step === 0) renderFinale();
+      if (added && !first) toast(`${added} נרשמים חדשים נכנסו להגרלה`);
+      first = false;
+    }, () => { $("dbStatus").textContent = "אין חיבור למסד הנתונים של הדמו"; });
+  });
 
   $("beatlesSongs").append(...BEATLES_SONGS.map((t) => Object.assign(document.createElement("option"), { value: t })));
   $("tvText").value = state.trivia.text;
