@@ -97,7 +97,7 @@ const QUIZ = [
   { q: 'באיזו שנה נרצח ג׳ון לנון?', right: "1980", wrong: ["1975", "1985", "1970"] },
 ];
 
-const CONTACT_HEADERS = ['טלפון', 'שם', 'עיר', 'אזור', 'מועדונים', 'נרשמו לראשונה', 'עודכן לאחרונה', 'שירים שביקשו'];
+const CONTACT_HEADERS = ['טלפון', 'מייל', 'שם', 'עיר', 'אזור', 'מועדונים', 'נרשמו לראשונה', 'עודכן לאחרונה', 'שירים שביקשו'];
 
 // Sets up the tabs: in the spreadsheet this script lives in, or in a new one. Safe to run again.
 function setup() {
@@ -111,13 +111,13 @@ function setup() {
     sh.setFrozenRows(1);
     return sh;
   };
-  const all = tab('נרשמים', ['זמן', 'שם', 'שיר', 'טלפון', 'עיר', 'אזור', 'הופעה', 'מאשר/ת עדכונים', 'ניקוד בחידון']);
+  const all = tab('נרשמים', ['זמן', 'שם', 'שיר', 'טלפון', 'מייל', 'עיר', 'אזור', 'הופעה', 'מאשר/ת עדכונים', 'ניקוד בחידון']);
   if (all) all.getRange('D:D').setNumberFormat('@'); // keep the leading 0 of phone numbers
   tab('במה', ['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
   const contacts = tab('אנשי קשר', CONTACT_HEADERS);
   if (contacts) contacts.getRange('A:A').setNumberFormat('@');
-  if (!ss.getSheetByName('לפי אזור ועיר')) sortedView(ss, 'לפי אזור ועיר', 4, 3, 2);
-  if (!ss.getSheetByName('לפי מועדון')) sortedView(ss, 'לפי מועדון', 5, 4, 3);
+  if (!ss.getSheetByName('לפי אזור ועיר')) sortedView(ss, 'לפי אזור ועיר', 5, 4, 3);
+  if (!ss.getSheetByName('לפי מועדון')) sortedView(ss, 'לפי מועדון', 6, 5, 4);
   PropertiesService.getScriptProperties().setProperty('SHEET', ss.getId());
   Logger.log('הגיליון מוכן: ' + ss.getUrl());
   Logger.log('עכשיו: Deploy ← New deployment ← Web app ← Execute as: Me ← Who has access: Anyone ← Deploy. ואז להריץ את links.');
@@ -127,7 +127,7 @@ function sortedView(ss, title, ...sortCols) {
   const sh = ss.insertSheet(title);
   sh.appendRow(CONTACT_HEADERS);
   sh.setFrozenRows(1);
-  sh.getRange('A2').setFormula("=IFERROR(SORT(FILTER('אנשי קשר'!A2:H, 'אנשי קשר'!A2:A<>\"\"), " +
+  sh.getRange('A2').setFormula("=IFERROR(SORT(FILTER('אנשי קשר'!A2:I, ('אנשי קשר'!A2:A<>\"\")+('אנשי קשר'!B2:B<>\"\")), " +
     sortCols.map((c) => c + ', TRUE').join(', ') + '), "")');
 }
 
@@ -167,8 +167,8 @@ function register(f) {
   const name = text(f.name, 30), song = text(f.song, 80), city = text(f.city, 40), area = text(f.area, 40), venue = text(f.venue, 60);
   if (!name || !SONGS.includes(song) || !city || !AREAS.includes(area) || f.consent !== true) throw new Error('missing');
   const updates = f.updates === true;
-  const phone = normalizePhone(f.phone);
-  if (updates && !phone) throw new Error('phone');
+  const phone = normalizePhone(f.phone), email = normalizeEmail(f.email);
+  if (updates && !phone && !email) throw new Error('contact');
   const answers = Array.isArray(f.answers) ? f.answers : [];
   const score = QUIZ.filter((q, i) => answers[i] === q.right).length;
 
@@ -177,22 +177,23 @@ function register(f) {
   try {
     const ss = SpreadsheetApp.openById(sheetId());
     const now = new Date();
-    ss.getSheetByName('נרשמים').appendRow([now, safe(name), safe(song), phone, safe(city), safe(area), safe(venue), updates ? 'כן' : 'לא', score]);
+    ss.getSheetByName('נרשמים').appendRow([now, safe(name), safe(song), phone, safe(email), safe(city), safe(area), safe(venue), updates ? 'כן' : 'לא', score]);
     ss.getSheetByName('במה').appendRow([safe(name), safe(song), score]);
-    if (updates) saveContact(ss, { phone, name, city, area, venue, song, now });
+    if (updates) saveContact(ss, { phone, email, name, city, area, venue, song, now });
   } finally {
     lock.releaseLock();
   }
   return score;
 }
 
-// One row per phone number: a returning fan gets tonight's venue and song added.
+// One row per person (matched by phone or email): a returning fan gets tonight's venue and song added.
 function saveContact(ss, c) {
   const sheet = ss.getSheetByName('אנשי קשר');
   const rows = sheet.getDataRange().getValues();
-  const i = rows.findIndex((r, idx) => idx > 0 && normalizePhone(r[0]) === c.phone);
+  const i = rows.findIndex((r, idx) => idx > 0 &&
+    ((c.phone && normalizePhone(r[0]) === c.phone) || (c.email && normalizeEmail(r[1]) === c.email)));
   if (i < 0) {
-    sheet.appendRow([c.phone, safe(c.name), safe(c.city), safe(c.area), safe(c.venue), c.now, c.now, safe(c.song)]);
+    sheet.appendRow([c.phone, safe(c.email), safe(c.name), safe(c.city), safe(c.area), safe(c.venue), c.now, c.now, safe(c.song)]);
     return;
   }
   const row = rows[i];
@@ -201,8 +202,9 @@ function saveContact(ss, c) {
     if (item && !items.includes(item)) items.push(item);
     return items.join(', ');
   };
-  sheet.getRange(i + 1, 1, 1, 8).setValues([[
-    c.phone, safe(c.name), safe(c.city), safe(c.area), safe(addTo(row[4], c.venue)), row[5], c.now, safe(addTo(row[7], c.song)),
+  sheet.getRange(i + 1, 1, 1, 9).setValues([[
+    c.phone || row[0], safe(c.email || row[1]), safe(c.name), safe(c.city), safe(c.area),
+    safe(addTo(row[5], c.venue)), row[6], c.now, safe(addTo(row[8], c.song)),
   ]]);
 }
 
@@ -217,6 +219,11 @@ function normalizePhone(s) {
   let d = String(s == null ? '' : s).replace(/\D/g, '');
   if (d.startsWith('972')) d = '0' + d.slice(3);
   return /^05\d{8}$/.test(d) ? d : '';
+}
+
+function normalizeEmail(s) {
+  const e = String(s == null ? '' : s).trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e.length <= 100 ? e : '';
 }
 
 function shuffle(arr) {

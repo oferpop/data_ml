@@ -41,7 +41,7 @@ h1 span { color: var(--spot); }
 .hint { color: var(--muted); font-size: .9rem; }
 form { display: grid; gap: 14px; }
 .field { display: grid; gap: 6px; font-weight: 600; }
-input[type="text"], input[type="tel"], select {
+input[type="text"], input[type="tel"], input[type="email"], select {
   font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
   border-radius: 10px; padding: 10px 12px; width: 100%;
 }
@@ -81,6 +81,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
     <label class="field" for="city">באיזו עיר אתם גרים?<input type="text" id="city" maxlength="40" autocomplete="address-level2"></label>
     <label class="field" for="area">באיזה אזור?<select id="area"></select></label>
     <label class="field" for="phone">טלפון נייד (לעדכונים בוואטסאפ, לא חובה)<input type="tel" id="phone" inputmode="tel" placeholder="050-1234567" autocomplete="tel" style="direction:ltr;text-align:right"></label>
+    <label class="field" for="email">מייל (לעדכונים במייל, לא חובה)<input type="email" id="email" inputmode="email" placeholder="name@gmail.com" autocomplete="email" style="direction:ltr;text-align:right"></label>
     <label class="check" for="consent"><input type="checkbox" id="consent"><span id="consentText"></span></label>
     <label class="check" for="updates"><input type="checkbox" id="updates"><span id="updatesText"></span></label>
     <p class="hint" id="privacy"></p>
@@ -109,8 +110,8 @@ if (DATA.venue) { $("venue").textContent = "📍 ההופעה הערב: " + DATA
 $("song").append(opt("", "בחרו שיר…"), ...DATA.songs.map((s) => opt(s)));
 $("area").append(opt("", "בחרו אזור…"), ...DATA.areas.map((a) => opt(a)));
 $("consentText").textContent = "אני מאשר/ת להשתתף בהגרלה, ושהשם והשיר שבחרתי יוצגו על המסך בהופעה.";
-$("updatesText").textContent = `אני מסכים/ה לקבל מ${DATA.artist} הודעות פרסומיות בוואטסאפ וב‑SMS על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת בהודעת "הסר".`;
-$("privacy").textContent = `את הפרטים אוסף ${DATA.artist} (${DATA.contact}). השם והשיר משמשים להגרלה. הטלפון, העיר והאזור ישמשו רק לעדכונים על הופעות, ורק אם סימנתם את האישור. הפרטים לא יועברו לאחרים, ואפשר לבקש לעיין בהם, לתקן או למחוק אותם בכל עת.`;
+$("updatesText").textContent = `אני מסכים/ה לקבל מ${DATA.artist} הודעות פרסומיות בוואטסאפ, ב‑SMS או במייל על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת בהודעת "הסר".`;
+$("privacy").textContent = `את הפרטים אוסף ${DATA.artist} (${DATA.contact}). השם והשיר משמשים להגרלה. הטלפון, המייל, העיר והאזור ישמשו רק לעדכונים על הופעות, ורק אם סימנתם את האישור. הפרטים לא יועברו לאחרים, ואפשר לבקש לעיין בהם, לתקן או למחוק אותם בכל עת.`;
 DATA.quiz.forEach((item, i) => {
   const box = document.createElement("div");
   box.className = "q";
@@ -133,12 +134,15 @@ $("form").addEventListener("submit", (e) => {
   e.preventDefault();
   const f = {
     name: $("name").value.trim(), song: $("song").value, city: $("city").value.trim(), area: $("area").value,
-    phone: $("phone").value.trim(), consent: $("consent").checked, updates: $("updates").checked, venue: DATA.venue,
+    phone: $("phone").value.trim(), email: $("email").value.trim(), consent: $("consent").checked, updates: $("updates").checked, venue: DATA.venue,
     answers: DATA.quiz.map((_, i) => (document.querySelector(`input[name="q${i}"]:checked`) || {}).value || ""),
   };
   if (!f.name || !f.song || !f.city || !f.area) return error("נא למלא שם, שיר, עיר ואזור.");
   if (!f.consent) return error("כדי להשתתף בהגרלה צריך לסמן את אישור ההשתתפות.");
-  if (f.updates && !/^(\+972-?|0)5\d[- ]?\d{3}[- ]?\d{4}$/.test(f.phone)) return error("לקבלת עדכונים צריך מספר נייד, למשל 050-1234567.");
+  const phoneOk = /^(\+972-?|0)5\d[- ]?\d{3}[- ]?\d{4}$/.test(f.phone), emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email);
+  if (f.phone && !phoneOk) return error("מספר הטלפון לא נראה תקין. למשל: 050-1234567.");
+  if (f.email && !emailOk) return error("כתובת המייל לא נראית תקינה.");
+  if (f.updates && !phoneOk && !emailOk) return error("לקבלת עדכונים צריך טלפון נייד או מייל.");
   error("");
   $("go").disabled = true;
   google.script.run
