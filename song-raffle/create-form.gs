@@ -1,8 +1,13 @@
 /**
- * Creates the sign-up form for the show (consent, name, song, and a 10-question
- * Beatles quiz answered on the phone), its responses spreadsheet, and a "במה" tab
- * that gets name + song + quiz score on every submission. The raffle reads only
- * that tab; phone numbers stay in the private responses tab.
+ * Creates the sign-up form for the show and its spreadsheet.
+ *
+ * The audience opens one link (from WhatsApp or the QR on the screen), gives consent,
+ * picks a Beatles song, says where they live and which club they're at, and can answer
+ * a 10-question Beatles quiz. Every submission:
+ *   - adds name + song + quiz score to the "במה" tab (what the raffle screen reads; no phones),
+ *   - and, for people who agreed to receive updates, saves or updates them in "אנשי קשר"
+ *     (one row per phone number, remembered across shows), with ready-sorted views
+ *     by area/city and by club.
  *
  * How to run: script.google.com → New project → paste this file → fill in the
  * settings below → Run "createSongRaffleForm" → approve access → copy the links
@@ -12,10 +17,20 @@
 // ---------- Settings ----------
 const ARTIST = 'שם הלהקה / האמן';                 // shown in the consent texts
 const CONTACT = 'טלפון או מייל ליצירת קשר';         // for removal and privacy requests
-const GROUP_LINK = '';                              // optional: https://chat.whatsapp.com/...
+const GROUP_LINK = '';                              // optional: one WhatsApp group for everyone, https://chat.whatsapp.com/...
 // false = the updates consent is a separate, optional box (recommended).
 // true  = signing up for the raffle requires agreeing to receive updates.
 const REQUIRE_UPDATES_CONSENT = false;
+
+// The clubs you play at. Each one gets its own link/QR with the club already filled in.
+const CLUBS = ['מועדון 1', 'מועדון 2', 'מועדון 3'];
+
+const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
+// Optional: a WhatsApp group per area. After choosing their area, people get that area's link.
+const AREA_GROUPS = {
+  // 'צפון': 'https://chat.whatsapp.com/...',
+  // 'מרכז / גוש דן': 'https://chat.whatsapp.com/...',
+};
 
 // The band's repertoire: the audience picks from this list. Edit it to match your setlist.
 const SONGS = [
@@ -91,7 +106,18 @@ const QUIZ = [
   { q: 'באיזו שנה נרצח ג׳ון לנון?', right: "1980", wrong: ["1975", "1985", "1970"] },
 ];
 
-const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
+// Question titles, shared by the form and the on-submit handler.
+const T = {
+  name: 'השם שיוצג על המסך',
+  song: 'איזה שיר של הביטלס הייתם רוצים לבחור?',
+  phone: 'טלפון נייד (לעדכונים בוואטסאפ)',
+  city: 'באיזו עיר אתם גרים?',
+  area: 'באיזה אזור?',
+  club: 'באיזה מועדון אתם הערב?',
+  consent: 'אישור השתתפות',
+  updates: 'עדכונים על הופעות באזור שלי',
+};
+const CONTACT_HEADERS = ['טלפון', 'שם', 'עיר', 'אזור', 'מועדונים', 'נרשמו לראשונה', 'עודכן לאחרונה', 'שירים שביקשו'];
 
 function createSongRaffleForm() {
   const form = FormApp.create('🎤 בוחרים שיר בהופעה – ' + ARTIST);
@@ -99,34 +125,51 @@ function createSongRaffleForm() {
     'נרשמים, בוחרים שיר של הביטלס, ובמהלך ההופעה נגריל מי בוחר את השיר הבא! השיר הכי מבוקש ייסגר את הערב.',
     '',
     'הודעה על איסוף מידע: את הפרטים בטופס אוסף ' + ARTIST + ' (' + CONTACT + ').',
-    'השם והשיר משמשים להגרלה ויוצגו על המסך בהופעה. הטלפון והאזור ישמשו רק לשליחת עדכונים על הופעות, ורק אם תסמנו את האישור לכך.',
+    'השם והשיר משמשים להגרלה ויוצגו על המסך בהופעה. הטלפון, העיר, האזור והמועדון ישמשו רק לשליחת עדכונים על הופעות, ורק אם תסמנו את האישור לכך.',
     'אינכם חייבים למסור את הפרטים, אבל בלי שם ושיר אי אפשר להשתתף בהגרלה.',
     'הפרטים נשמרים בחשבון Google של ' + ARTIST + ', לא יועברו לאחרים, ואפשר לבקש לעיין בהם, לתקן או למחוק אותם בכל עת דרך ' + CONTACT + '.',
   ].join('\n'));
   form.setCollectEmail(false);
 
-  form.addTextItem().setTitle('השם שיוצג על המסך').setRequired(true);
-  form.addListItem().setTitle('איזה שיר של הביטלס הייתם רוצים לבחור?').setChoiceValues(SONGS).setRequired(true);
+  form.addTextItem().setTitle(T.name).setRequired(true);
+  form.addListItem().setTitle(T.song).setChoiceValues(SONGS).setRequired(true);
+  const clubItem = CLUBS.length
+    ? form.addListItem().setTitle(T.club).setChoiceValues(CLUBS).setRequired(true)
+    : form.addTextItem().setTitle(T.club).setRequired(true);
   form.addTextItem()
-    .setTitle('טלפון נייד (לעדכונים בוואטסאפ)')
+    .setTitle(T.phone)
     .setRequired(REQUIRE_UPDATES_CONSENT)
     .setValidation(FormApp.createTextValidation()
       .setHelpText('מספר נייד ישראלי, למשל 050-1234567')
       .requireTextMatchesPattern('^(\\+972-?|0)5\\d[- ]?\\d{3}[- ]?\\d{4}$')
       .build());
-  form.addListItem().setTitle('באיזה אזור אתם גרים?').setChoiceValues(AREAS).setRequired(true);
+  form.addTextItem().setTitle(T.city).setRequired(true);
+  const areaItem = form.addListItem().setTitle(T.area).setRequired(true);
   form.addCheckboxItem()
-    .setTitle('אישור השתתפות')
+    .setTitle(T.consent)
     .setChoiceValues(['קראתי את ההודעה למעלה ואני מאשר/ת להשתתף בהגרלה, ושהשם והשיר שבחרתי יוצגו על המסך בהופעה.'])
     .setRequired(true);
   form.addCheckboxItem()
-    .setTitle('עדכונים על הופעות באזור שלי')
+    .setTitle(T.updates)
     .setChoiceValues(['אני מסכים/ה לקבל מ' + ARTIST + ' הודעות פרסומיות בוואטסאפ וב‑SMS על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת בהודעת "הסר".'])
     .setRequired(REQUIRE_UPDATES_CONSENT);
 
-  form.addPageBreakItem()
+  // One page per area that has its own WhatsApp group; the area answer leads there, then on to the quiz.
+  const areaPages = {};
+  const withGroups = AREAS.filter((a) => AREA_GROUPS[a]);
+  withGroups.forEach((a) => {
+    areaPages[a] = form.addPageBreakItem()
+      .setTitle('📍 ' + a)
+      .setHelpText('הצטרפו לקבוצת הוואטסאפ של ' + ARTIST + ' באזור ' + a + ':\n' + AREA_GROUPS[a]);
+  });
+  const quizPage = form.addPageBreakItem()
     .setTitle('🎸 חידון ביטלס')
     .setHelpText('10 שאלות, לא חובה. מי שעונה הכי הרבה תשובות נכונות יופיע בטבלת המובילים על המסך!');
+  // A page break's "go to" applies to the page before it: send each area page straight to the quiz.
+  withGroups.slice(1).forEach((a) => areaPages[a].setGoToPage(quizPage));
+  if (withGroups.length) areaItem.setChoices(AREAS.map((a) => areaItem.createChoice(a, areaPages[a] || quizPage)));
+  else areaItem.setChoiceValues(AREAS);
+
   QUIZ.forEach(({ q, right, wrong }) => {
     const item = form.addMultipleChoiceItem().setTitle(q);
     item.setChoices([right, ...wrong].sort(() => Math.random() - .5).map((c) => item.createChoice(c, c === right)));
@@ -146,27 +189,82 @@ function createSongRaffleForm() {
   const responses = SpreadsheetApp.openById(ss.getId()).getSheets().find((s) => s.getFormUrl());
   const stage = ss.insertSheet('במה');
   stage.appendRow(['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
+
+  const contacts = ss.insertSheet('אנשי קשר');
+  contacts.appendRow(CONTACT_HEADERS);
+  contacts.getRange('A:A').setNumberFormat('@'); // keep the leading 0 of phone numbers
+  contacts.setFrozenRows(1);
+  const sortedView = (title, ...sortCols) => {
+    const sh = ss.insertSheet(title);
+    sh.appendRow(CONTACT_HEADERS);
+    sh.setFrozenRows(1);
+    sh.getRange('A2').setFormula("=IFERROR(SORT(FILTER('אנשי קשר'!A2:H, 'אנשי קשר'!A2:A<>\"\"), " +
+      sortCols.map((c) => c + ', TRUE').join(', ') + '), "")');
+  };
+  sortedView('לפי אזור ועיר', 4, 3, 2);
+  sortedView('לפי מועדון', 5, 4, 3);
+
+  const keep = new Set([responses, stage, contacts].map((s) => s.getSheetId()).concat(
+    ['לפי אזור ועיר', 'לפי מועדון'].map((n) => ss.getSheetByName(n).getSheetId())));
+  ss.getSheets().filter((s) => !keep.has(s.getSheetId())).forEach((s) => ss.deleteSheet(s));
+
   PropertiesService.getScriptProperties().setProperty('STAGE_SHEET', ss.getId());
   ScriptApp.newTrigger('onSignup').forForm(form).onFormSubmit().create();
-  ss.getSheets()
-    .filter((s) => s.getSheetId() !== responses.getSheetId() && s.getSheetId() !== stage.getSheetId())
-    .forEach((s) => ss.deleteSheet(s));
 
-  Logger.log('לינק לקהל (ל‑QR): ' + form.shortenFormUrl(form.getPublishedUrl()));
+  Logger.log('לינק כללי לקהל: ' + form.shortenFormUrl(form.getPublishedUrl()));
+  CLUBS.forEach((club) => {
+    const url = form.createResponse().withItemResponse(clubItem.createResponse(club)).toPrefilledUrl();
+    Logger.log('לינק ל‑' + club + ' (המועדון כבר מסומן): ' + url);
+  });
   Logger.log('עריכת הטופס: ' + form.getEditUrl());
   Logger.log('הגיליון: ' + ss.getUrl());
   Logger.log('עכשיו בגיליון: קובץ ← שיתוף ← פרסום באינטרנט ← לשונית "במה" ← CSV ← פרסום, ולהדביק את הלינק במשחק.');
 }
 
-// Runs on every sign-up: adds name, song and quiz score to the "במה" tab (never the phone number).
+// Runs on every sign-up.
 function onSignup(e) {
-  const answers = {};
-  e.response.getItemResponses().forEach((r) => { answers[r.getItem().getTitle()] = r.getResponse(); });
-  const score = QUIZ.filter(({ q, right }) => answers[q] === right).length;
+  const a = {};
+  e.response.getItemResponses().forEach((r) => { a[r.getItem().getTitle()] = r.getResponse(); });
   const ss = SpreadsheetApp.openById(PropertiesService.getScriptProperties().getProperty('STAGE_SHEET'));
-  ss.getSheetByName('במה').appendRow([
-    answers['השם שיוצג על המסך'] || '',
-    answers['איזה שיר של הביטלס הייתם רוצים לבחור?'] || '',
-    score,
-  ]);
+
+  // 1. The raffle screen: name, song and quiz score only.
+  const score = QUIZ.filter(({ q, right }) => a[q] === right).length;
+  ss.getSheetByName('במה').appendRow([a[T.name] || '', a[T.song] || '', score]);
+
+  // 2. Contacts: only people who agreed to receive updates, one row per phone number.
+  const agreed = Array.isArray(a[T.updates]) && a[T.updates].length > 0;
+  const phone = normalizePhone(a[T.phone] || '');
+  if (!agreed || !phone) return;
+  const sheet = ss.getSheetByName('אנשי קשר');
+  const now = new Date();
+  const rows = sheet.getDataRange().getValues();
+  const i = rows.findIndex((r, idx) => idx > 0 && normalizePhone(String(r[0])) === phone);
+  if (i < 0) {
+    sheet.appendRow([phone, a[T.name] || '', a[T.city] || '', a[T.area] || '', a[T.club] || '', now, now, a[T.song] || '']);
+    return;
+  }
+  // Already known: refresh their details and add tonight's club and song.
+  const row = rows[i];
+  const addTo = (list, item) => {
+    const items = String(list || '').split(', ').filter(Boolean);
+    if (item && !items.includes(item)) items.push(item);
+    return items.join(', ');
+  };
+  sheet.getRange(i + 1, 1, 1, 8).setValues([[
+    phone,
+    a[T.name] || row[1],
+    a[T.city] || row[2],
+    a[T.area] || row[3],
+    addTo(row[4], a[T.club]),
+    row[5],
+    now,
+    addTo(row[7], a[T.song]),
+  ]]);
+}
+
+// 050-123 4567, +972 50 1234567 and 0501234567 are the same person.
+function normalizePhone(s) {
+  let d = String(s).replace(/\D/g, '');
+  if (d.startsWith('972')) d = '0' + d.slice(3);
+  return /^05\d{8}$/.test(d) ? d : '';
 }
