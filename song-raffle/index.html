@@ -368,13 +368,17 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <span class="pool-line" id="venueStatus"></span>
       </div>
       <p class="hint">
-        אפשר גם לייבא צ׳אט מוואטסאפ (בקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”): נאסף כל מי שכתב או הצטרף, הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת שיר ו‑<b>שם:</b> קובעת את השם שיוצג. מספרי טלפון מוצגים רק עם 4 הספרות האחרונות.
+        <b>הרשמה בוואטסאפ:</b> שולחים בקבוצה את „הודעת ההרשמה” ומצמידים אותה. כל אחד מעתיק, ממלא (שם, שיר, עיר, אזור, עדכונים) ושולח. לפני ההגרלה: בקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”, ומייבאים כאן. נאסף גם כל מי שהצטרף לקבוצה. מספרי טלפון מוצגים רק עם 4 הספרות האחרונות.
       </p>
       <div class="row">
         <label class="btn file-btn" for="chatFile">ייבוא קובץ (צ׳אט / CSV)
           <input type="file" id="chatFile" accept=".txt,.csv,text/plain,text/csv">
         </label>
         <button class="btn" id="clearAllBtn" type="button">ניקוי הרשימה</button>
+      </div>
+      <div class="row">
+        <button class="btn small" id="templateBtn" type="button">העתקת הודעת הרשמה לקבוצה</button>
+        <button class="btn small" id="contactsBtn" type="button">העתקת אנשי קשר שאישרו עדכונים</button>
       </div>
       <div class="confirm" id="clearConfirm" hidden>
         <span>למחוק את כל המשתתפים, הזוכים ושיר הסיום?</span>
@@ -633,33 +637,65 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   // "[30/10/2026, 21:04:11] Name: msg" (iPhone) or "30/10/2026, 21:04 - Name: msg" (Android), also with AM/PM.
   const PREFIX = /^\[?\d{1,4}[./-]\d{1,2}[./-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[APap]\.?[Mm]\.?)?\]?\s*(?:[-–]\s*)?/;
   const SELF = new Set(["you", "את/ה", "אתה", "את", "אני"]);
-  const SONG_RE = /^(?:שיר|song)\s*[:\-–]\s*(.+)$/i;
+  const SONG_RE = /^(?:שיר(?: של הביטלס)?|song)\s*[:\-–]\s*(.+)$/i;
   const NAME_RE = /^(?:שם|name)\s*[:\-–]\s*(.+)$/i;
   // Audience members who aren't in your contacts show up as phone numbers: never put a full number on the big screen.
   const maskPhone = (s) => /^\+?[\d\s\-()]{7,}$/.test(s) ? "מספר המסתיים ב‑" + s.replace(/\D/g, "").slice(-4) : s;
 
+  const CITY_RE = /^(?:עיר|city)\s*[:\-–]\s*(.+)$/i;
+  const AREA_RE = /^(?:אזור|area)\s*[:\-–]\s*(.+)$/i;
+  // Opt-in only: the line has to say yes ("עדכונים על הופעות באזור שלי (כן/לא): כן").
+  const UPDATES_RE = /^(?:עדכונים|updates)[^:]*:\s*(?:כן|yes|מאשר)/i;
+  const phoneOf = (s) => {
+    let d = s.replace(/\D/g, "");
+    if (d.startsWith("972")) d = "0" + d.slice(3);
+    return /^05\d{8}$/.test(d) ? d : "";
+  };
+  // The sign-up message members copy, fill in and send in the group.
+  const SIGNUP_TEMPLATE = [
+    "🎸 ערב ביטלס – נרשמים להגרלות!",
+    "העתיקו את ההודעה הזו, מלאו ושלחו כאן בקבוצה:",
+    "",
+    "שם: ",
+    "שיר של הביטלס: ",
+    "עיר: ",
+    "אזור: ",
+    "עדכונים על הופעות באזור שלי (כן/לא): ",
+    "",
+    "השם והשיר יוצגו על המסך בהופעה. „כן” בעדכונים = מאשרים לקבל מאיתנו הודעות על הופעות באזור, ואפשר להסיר בכל עת.",
+  ].join("\n");
+
   const cleanName = (s) => s.replace(BIDI, "").replace(/[‐-―−]/g, "-").replace(/[  ]/g, " ").replace(/^~\s*/, "").trim();
 
   function parseChat(text) {
-    const found = new Map(); // sender as exported -> { name, song }
-    const add = (raw, song, nick) => {
+    const found = new Map(); // sender as exported -> { name, song, city, area, updates, phone }
+    const add = (raw) => {
       const id = cleanName(raw);
-      if (!id || id.length > 40 || SELF.has(id.toLowerCase())) return;
-      if (!found.has(id)) found.set(id, { name: maskPhone(id), song: "" });
-      const f = found.get(id);
-      if (song) f.song = song.trim().slice(0, 80);
-      if (nick) f.name = nick.trim().slice(0, 30);
+      if (!id || id.length > 40 || SELF.has(id.toLowerCase())) return null;
+      if (!found.has(id)) found.set(id, { name: maskPhone(id), song: "", phone: phoneOf(id) });
+      return id;
     };
+    // One line of a member's message. A message can span lines, so the export puts "שיר: …", "עיר: …" on lines of their own.
+    const read = (id, msg) => {
+      const f = found.get(id), get = (re) => (msg.match(re) || [])[1]?.trim();
+      const song = get(SONG_RE), nick = get(NAME_RE), city = get(CITY_RE), area = get(AREA_RE);
+      if (song) f.song = song.slice(0, 80);
+      if (nick) f.name = nick.slice(0, 30);
+      if (city) f.city = city.slice(0, 40);
+      if (area) f.area = area.slice(0, 40);
+      if (UPDATES_RE.test(msg)) f.updates = true;
+    };
+    let last = null;
     for (let line of text.split(/\r?\n/)) {
       line = line.replace(BIDI, "");
       const m = line.match(PREFIX);
-      if (!m) continue;
+      if (!m) { if (last) read(last, line.trim()); continue; }
+      last = null;
       const rest = line.slice(m[0].length);
       const colon = rest.indexOf(": ");
       if (colon > 0) {
-        const msg = rest.slice(colon + 2).trim();
-        const sm = msg.match(SONG_RE), nm = msg.match(NAME_RE);
-        add(rest.slice(0, colon), sm ? sm[1] : "", nm ? nm[1] : "");
+        last = add(rest.slice(0, colon));
+        if (last) read(last, rest.slice(colon + 2).trim());
         continue;
       }
       // System lines: joins and adds.
@@ -674,14 +710,16 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   function mergePeople(map) {
     if (state.sample) { state.people = []; state.history = []; state.shirtWins = []; state.finale = null; state.sample = false; }
     let added = 0;
-    for (const [id, { name, song, score = null }] of map) {
+    for (const [id, { name, song, score = null, ...extra }] of map) {
+      const more = Object.fromEntries(["city", "area", "phone", "updates"].filter((k) => extra[k]).map((k) => [k, extra[k]]));
       const existing = state.people.find((p) => (p.id || p.name) === id);
       if (existing) {
         [...state.history, ...state.shirtWins].forEach((h) => { if (h.name === existing.name) h.name = name; });
         existing.name = name;
         if (song) existing.song = song;
         if (score !== null) existing.score = score;
-      } else { state.people.push({ id, name, song, score, active: true }); added++; }
+        Object.assign(existing, more);
+      } else { state.people.push({ id, name, song, score, active: true, ...more }); added++; }
     }
     return added;
   }
@@ -1329,6 +1367,18 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     renderStage();
   };
 
+  const copy = (text, ok) => navigator.clipboard?.writeText(text).then(() => toast(ok), () => toast("ההעתקה נחסמה בדפדפן הזה"))
+    ?? toast("ההעתקה לא נתמכת בדפדפן הזה");
+  $("templateBtn").onclick = () => copy(SIGNUP_TEMPLATE, "ההודעה הועתקה. שלחו אותה בקבוצה והצמידו אותה (📌)");
+  // Contacts who said yes to updates, sorted by area and city, ready to paste into a spreadsheet.
+  $("contactsBtn").onclick = () => {
+    const rows = state.people.filter((p) => p.updates && p.phone)
+      .sort((a, b) => (a.area || "").localeCompare(b.area || "", "he") || (a.city || "").localeCompare(b.city || "", "he"));
+    if (!rows.length) return toast("עוד אין אנשי קשר שאישרו עדכונים");
+    const text = ["טלפון\tשם\tעיר\tאזור\tהופעה", ...rows.map((p) => [p.phone, p.name, p.city || "", p.area || "", state.venue || ""].join("\t"))].join("\n");
+    copy(text, `הועתקו ${rows.length} אנשי קשר. אפשר להדביק בגיליון גוגל`);
+  };
+
   $("copyBtn").onclick = () => {
     if (!state.history.length && !state.finale) return;
     let text = "🎤 הסט־ליסט של הערב\n" + state.history.map((h, i) => `${i + 1}. ${h.name}${h.song ? " – " + h.song : ""}`).join("\n");
@@ -1608,7 +1658,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       snap.docs.forEach((d) => {
         const x = d.data() || {};
         if (!x.name) return;
-        found.set("db:" + d.id, { name: String(x.name).slice(0, 30), song: String(x.song || "").slice(0, 80), score: typeof x.score === "number" ? x.score : null });
+        found.set("db:" + d.id, {
+          name: String(x.name).slice(0, 30), song: String(x.song || "").slice(0, 80), score: typeof x.score === "number" ? x.score : null,
+          city: String(x.city || "").slice(0, 40), area: String(x.area || "").slice(0, 40), phone: phoneOf(String(x.phone || "")), updates: x.updates === true,
+        });
       });
       $("dbStatus").textContent = found.size ? `📱 ${found.size} נרשמו בדף ההרשמה` : "📱 עוד אין נרשמים בדף ההרשמה";
       if (!found.size) return;
