@@ -8,7 +8,8 @@
  *     with sorted views "לפי אזור ועיר" and "לפי מועדון".
  *
  * Setup (once, on a computer):
- *   1. script.google.com → New project. Paste this file into Code.gs.
+ *   1. Open the sign-up spreadsheet → Extensions → Apps Script. Paste this file into Code.gs.
+ *      (A standalone project from script.google.com works too: setup then creates the spreadsheet.)
  *   2. File "+" → HTML → name it  join  → paste join.html into it.
  *   3. Fill in the settings below, save, and Run "setup" (approve access when Google asks).
  *   4. Deploy → New deployment → type: Web app → Execute as: Me → Who has access: Anyone → Deploy.
@@ -98,22 +99,27 @@ const QUIZ = [
 
 const CONTACT_HEADERS = ['טלפון', 'שם', 'עיר', 'אזור', 'מועדונים', 'נרשמו לראשונה', 'עודכן לאחרונה', 'שירים שביקשו'];
 
-// Creates the spreadsheet and its tabs. Run once.
+// Sets up the tabs: in the spreadsheet this script lives in, or in a new one. Safe to run again.
 function setup() {
-  const ss = SpreadsheetApp.create('נרשמים – ערב ביטלס – ' + ARTIST);
-  const all = ss.getSheets()[0].setName('נרשמים');
-  all.appendRow(['זמן', 'שם', 'שיר', 'טלפון', 'עיר', 'אזור', 'הופעה', 'מאשר/ת עדכונים', 'ניקוד בחידון']);
-  all.getRange('D:D').setNumberFormat('@'); // keep the leading 0 of phone numbers
-  all.setFrozenRows(1);
-  ss.insertSheet('במה').appendRow(['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
-  const contacts = ss.insertSheet('אנשי קשר');
-  contacts.appendRow(CONTACT_HEADERS);
-  contacts.getRange('A:A').setNumberFormat('@');
-  contacts.setFrozenRows(1);
-  sortedView(ss, 'לפי אזור ועיר', 4, 3, 2);
-  sortedView(ss, 'לפי מועדון', 5, 4, 3);
+  const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.create('נרשמים – ערב ביטלס – ' + ARTIST);
+  const fresh = ss.getSheets().length === 1 && ss.getSheets()[0].getLastRow() === 0 ? ss.getSheets()[0] : null;
+  const tab = (name, headers) => {
+    let sh = ss.getSheetByName(name);
+    if (sh) return null;
+    sh = fresh && !fresh.isSheetHidden() && name === 'נרשמים' ? fresh.setName(name) : ss.insertSheet(name);
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+    return sh;
+  };
+  const all = tab('נרשמים', ['זמן', 'שם', 'שיר', 'טלפון', 'עיר', 'אזור', 'הופעה', 'מאשר/ת עדכונים', 'ניקוד בחידון']);
+  if (all) all.getRange('D:D').setNumberFormat('@'); // keep the leading 0 of phone numbers
+  tab('במה', ['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
+  const contacts = tab('אנשי קשר', CONTACT_HEADERS);
+  if (contacts) contacts.getRange('A:A').setNumberFormat('@');
+  if (!ss.getSheetByName('לפי אזור ועיר')) sortedView(ss, 'לפי אזור ועיר', 4, 3, 2);
+  if (!ss.getSheetByName('לפי מועדון')) sortedView(ss, 'לפי מועדון', 5, 4, 3);
   PropertiesService.getScriptProperties().setProperty('SHEET', ss.getId());
-  Logger.log('הגיליון נוצר: ' + ss.getUrl());
+  Logger.log('הגיליון מוכן: ' + ss.getUrl());
   Logger.log('עכשיו: Deploy ← New deployment ← Web app ← Execute as: Me ← Who has access: Anyone ← Deploy. ואז להריץ את links.');
 }
 
