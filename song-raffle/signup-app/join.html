@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<base target="_top">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@700&family=Assistant:wght@400;600;800&display=swap">
+<style>
+/* The audience's sign-up page: the show screen's dark stage under an amber spotlight, sized for a phone. */
+:root {
+  --stage: #170f2b;
+  --curtain: #2b1436;
+  --panel: #21173a;
+  --spot: #ffc94a;
+  --spot-ink: #2a1600;
+  --ink: #f6eedf;
+  --muted: #b5a6c8;
+  --line: #3d2f5c;
+  --danger: #ff7a7a;
+  --font-display: "Karantina", "Assistant", "Arial Hebrew", sans-serif;
+  --font-body: "Assistant", "Segoe UI", "Arial Hebrew", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--stage); }
+body {
+  margin: 0; color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+  background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255, 201, 74, .18), transparent 70%), var(--stage);
+}
+main { display: grid; gap: 18px; max-width: 520px; margin: 0 auto; }
+.eyebrow { font-size: .8rem; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--font-display); font-size: 3.2rem; line-height: 1; margin: 0; }
+h1 span { color: var(--spot); }
+.head { display: grid; gap: 6px; }
+.head p { margin: 0; }
+.hint { color: var(--muted); font-size: .9rem; }
+form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; font-weight: 600; }
+input[type="text"], input[type="tel"], select {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: .95rem; }
+.check input { accent-color: var(--spot); width: 20px; height: 20px; flex: none; margin-top: 2px; }
+fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 16px; margin: 0; min-width: 0; }
+legend { font-weight: 800; padding: 0 6px; }
+.q p { margin: 0 0 4px; font-weight: 600; }
+.q label { display: flex; gap: 10px; align-items: center; padding: 5px 0; }
+.q input { accent-color: var(--spot); width: 18px; height: 18px; flex: none; }
+.error { color: var(--danger); margin: 0; }
+.go {
+  background: var(--spot); color: var(--spot-ink); border: 0; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-display); font-size: 2.2rem; padding: 6px 48px 2px; justify-self: center;
+  box-shadow: 0 8px 30px rgba(255, 201, 74, .35);
+}
+.go:disabled { opacity: .5; cursor: wait; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--spot); outline-offset: 2px; }
+.done { display: grid; gap: 14px; justify-items: center; text-align: center; padding-block: 32px; }
+.done .big { font-family: var(--font-display); font-size: 4.4rem; line-height: 1; color: var(--spot); text-shadow: 0 0 40px rgba(255, 201, 74, .45); }
+.done p { margin: 0; font-size: 1.15rem; }
+.group { background: #25d366; color: #062b14; font-weight: 800; text-decoration: none; padding: 10px 20px; border-radius: 999px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <div class="eyebrow" id="eyebrow">ערב ביטלס · הרשמה להגרלות</div>
+    <h1>בוחרים <span>שיר</span></h1>
+    <p class="hint" id="venue" hidden></p>
+    <p class="hint">נרשמים, בוחרים שיר של הביטלס, ובמהלך ההופעה נגריל מי בוחר את השיר הבא. השיר הכי מבוקש יסגור את הערב!</p>
+  </div>
+
+  <form id="form" novalidate>
+    <label class="field" for="name">השם שיוצג על המסך<input type="text" id="name" maxlength="30" autocomplete="given-name"></label>
+    <label class="field" for="song">איזה שיר של הביטלס הייתם רוצים לבחור?<select id="song"></select></label>
+    <label class="field" for="city">באיזו עיר אתם גרים?<input type="text" id="city" maxlength="40" autocomplete="address-level2"></label>
+    <label class="field" for="area">באיזה אזור?<select id="area"></select></label>
+    <label class="field" for="phone">טלפון נייד (לעדכונים בוואטסאפ, לא חובה)<input type="tel" id="phone" inputmode="tel" placeholder="050-1234567" autocomplete="tel" style="direction:ltr;text-align:right"></label>
+    <label class="check" for="consent"><input type="checkbox" id="consent"><span id="consentText"></span></label>
+    <label class="check" for="updates"><input type="checkbox" id="updates"><span id="updatesText"></span></label>
+    <p class="hint" id="privacy"></p>
+    <fieldset>
+      <legend>🎸 חידון ביטלס (לא חובה)</legend>
+      <div id="quiz" style="display:grid;gap:16px"></div>
+    </fieldset>
+    <p class="error" id="error" hidden></p>
+    <button class="go" id="go" type="submit">נרשמים!</button>
+  </form>
+
+  <div class="done" id="done" hidden>
+    <div class="big">נרשמת! 🎶</div>
+    <p id="score"></p>
+    <p>תסתכלו על המסך. אולי תזכו לבחור את השיר הבא!</p>
+    <a class="group" id="group" href="#" hidden>להצטרפות לקבוצת הוואטסאפ שלנו</a>
+  </div>
+</main>
+
+<script>
+const DATA = <?!= data ?>;
+const $ = (id) => document.getElementById(id);
+const opt = (v, label) => Object.assign(document.createElement("option"), { value: v, textContent: label || v });
+
+if (DATA.venue) { $("venue").textContent = "📍 ההופעה הערב: " + DATA.venue; $("venue").hidden = false; }
+$("song").append(opt("", "בחרו שיר…"), ...DATA.songs.map((s) => opt(s)));
+$("area").append(opt("", "בחרו אזור…"), ...DATA.areas.map((a) => opt(a)));
+$("consentText").textContent = "אני מאשר/ת להשתתף בהגרלה, ושהשם והשיר שבחרתי יוצגו על המסך בהופעה.";
+$("updatesText").textContent = `אני מסכים/ה לקבל מ${DATA.artist} הודעות פרסומיות בוואטסאפ וב‑SMS על הופעות באזור שלי. אפשר להסיר את עצמי בכל עת בהודעת "הסר".`;
+$("privacy").textContent = `את הפרטים אוסף ${DATA.artist} (${DATA.contact}). השם והשיר משמשים להגרלה. הטלפון, העיר והאזור ישמשו רק לעדכונים על הופעות, ורק אם סימנתם את האישור. הפרטים לא יועברו לאחרים, ואפשר לבקש לעיין בהם, לתקן או למחוק אותם בכל עת.`;
+DATA.quiz.forEach((item, i) => {
+  const box = document.createElement("div");
+  box.className = "q";
+  const p = document.createElement("p");
+  p.textContent = `${i + 1}. ${item.q}`;
+  box.append(p);
+  item.choices.forEach((c, j) => {
+    const l = document.createElement("label");
+    const r = Object.assign(document.createElement("input"), { type: "radio", name: "q" + i, value: c, id: `q${i}_${j}` });
+    l.htmlFor = r.id;
+    l.append(r, document.createTextNode(c));
+    box.append(l);
+  });
+  $("quiz").append(box);
+});
+
+function error(msg) { $("error").textContent = msg; $("error").hidden = !msg; if (msg) $("error").scrollIntoView({ block: "center" }); }
+
+$("form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const f = {
+    name: $("name").value.trim(), song: $("song").value, city: $("city").value.trim(), area: $("area").value,
+    phone: $("phone").value.trim(), consent: $("consent").checked, updates: $("updates").checked, venue: DATA.venue,
+    answers: DATA.quiz.map((_, i) => (document.querySelector(`input[name="q${i}"]:checked`) || {}).value || ""),
+  };
+  if (!f.name || !f.song || !f.city || !f.area) return error("נא למלא שם, שיר, עיר ואזור.");
+  if (!f.consent) return error("כדי להשתתף בהגרלה צריך לסמן את אישור ההשתתפות.");
+  if (f.updates && !/^(\+972-?|0)5\d[- ]?\d{3}[- ]?\d{4}$/.test(f.phone)) return error("לקבלת עדכונים צריך מספר נייד, למשל 050-1234567.");
+  error("");
+  $("go").disabled = true;
+  google.script.run
+    .withSuccessHandler((score) => {
+      $("form").hidden = true;
+      $("done").hidden = false;
+      $("score").textContent = `הניקוד שלך בחידון: ${score} מתוך ${DATA.quiz.length}`;
+      if (DATA.group) { $("group").href = DATA.group; $("group").hidden = false; }
+      window.scrollTo(0, 0);
+    })
+    .withFailureHandler(() => { error("ההרשמה לא נשמרה. בדקו את הפרטים ונסו שוב."); $("go").disabled = false; })
+    .register(f);
+});
+</script>
+</body>
+</html>
