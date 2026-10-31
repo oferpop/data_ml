@@ -45,8 +45,7 @@ button { font: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, label:focus-within { outline: 3px solid var(--spot); outline-offset: 2px; }
 
 /* ---------- Segment tabs ---------- */
-.modes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 620px) { .modes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
 .mode-btn {
   display: grid; gap: 0; text-align: start; padding: 8px 12px; border-radius: 12px;
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
@@ -204,8 +203,31 @@ select {
   border-radius: 10px; padding: 9px 12px; width: 100%;
 }
 .join-page { display: none; }
-body.join-mode .wrap, body.join-mode .proj-exit { display: none !important; }
-body.join-mode .join-page { display: grid; gap: 18px; max-width: 520px; margin: 0 auto; }
+body.join-mode .wrap, body.join-mode .proj-exit, body.photo-mode .wrap, body.photo-mode .proj-exit { display: none !important; }
+body.join-mode #joinPage, body.photo-mode #photoPage { display: grid; gap: 18px; max-width: 520px; margin: 0 auto; }
+.ph-preview { max-width: 100%; max-height: 50vh; border-radius: 12px; object-fit: contain; justify-self: center; }
+
+/* Photo wall: audience photos crossfading full-frame, with a slow push-in. */
+.photo-wall { position: relative; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; background: #000; }
+.photo-wall img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity 1.2s ease; }
+.photo-wall img.on { opacity: 1; animation: push var(--slide-s, 6s) linear forwards; }
+@keyframes push { from { transform: scale(1); } to { transform: scale(1.06); } }
+.photo-cap {
+  position: absolute; inset-inline: 0; bottom: 0; padding: 28px 20px 14px; text-align: start;
+  font-family: var(--font-display); font-size: clamp(1.6rem, 4vw, 2.8rem); line-height: 1; color: var(--ink);
+  background: linear-gradient(transparent, rgba(0, 0, 0, .7));
+}
+.photo-cap:empty { display: none; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; border: 2px solid var(--line); background: var(--stage); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb.pending { border-color: var(--spot); }
+.thumb.hidden-photo img { opacity: .25; }
+.thumb .tag { position: absolute; top: 6px; inset-inline-start: 6px; background: var(--shade); color: var(--ink); font-size: .75rem; padding: 1px 6px; border-radius: 6px; }
+.thumb .acts { position: absolute; inset-inline: 0; bottom: 0; display: flex; gap: 4px; padding: 6px; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); }
+.thumb .acts button { flex: 1; border: 0; border-radius: 6px; padding: 3px 0; font-size: .85rem; font-weight: 800; }
+.thumb .ok { background: var(--spot); color: var(--spot-ink); }
+.thumb .no { background: var(--line); color: var(--ink); }
 .jp-head { display: grid; gap: 6px; }
 .jp-head p { margin: 0; }
 .jp-demo { font-size: .85rem; color: var(--muted); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; }
@@ -239,6 +261,8 @@ body.projection .proj-exit {
   background: transparent; color: var(--muted); border: 1px solid var(--line); border-radius: 8px;
   padding: 4px 10px; font-size: .8rem; opacity: .3;
 }
+body.projection .stage.photos { padding: 0; }
+body.projection .photo-wall { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; }
 body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .drum.winner { animation: none; } .tv-bar, .fin-list .bar { transition: none; } }
 </style>
@@ -254,6 +278,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     <button class="mode-btn" role="tab" data-mode="song" type="button"><b>הגרלת שיר</b><small>באמצע ההופעה<kbd>2</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="shirt" type="button"><b>הגרלת חולצה</b><small>באמצע ההופעה<kbd>3</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="finale" type="button"><b>שיר הסיום</b><small>הכי מבוקש הערב<kbd>4</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="photos" type="button"><b>קיר תמונות</b><small>תמונות מהקהל<kbd>5</kbd></small></button>
   </nav>
 
   <section class="stage" id="stage" aria-live="polite">
@@ -290,8 +315,13 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <div class="drum" id="finWinner" hidden></div>
     </div>
 
+    <div class="view" id="viewPhotos">
+      <div class="photo-wall" id="photoWall"><img id="slideA" alt=""><img id="slideB" alt=""><div class="photo-cap" id="photoCap"></div></div>
+      <div class="eyebrow" id="photoEmpty"></div>
+    </div>
+
     <div class="join" id="joinBox" hidden>
-      <div class="join-title">סרקו: חידון ביטלס ובחירת שיר</div>
+      <div class="join-title" id="joinTitle">סרקו: חידון ביטלס ובחירת שיר</div>
       <div class="qr" id="qr"></div>
       <div class="join-link" id="joinLink"></div>
     </div>
@@ -379,6 +409,20 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       </section>
     </div>
 
+    <section class="panel wide" aria-labelledby="phTitle">
+      <h2 id="phTitle">קיר תמונות <small id="phCount"></small></h2>
+      <p class="hint">התמונות מתחלפות על המסך במצב „קיר תמונות” (מקש 5). <b>בהופעה:</b> הקהל שולח תמונות לקבוצת הוואטסאפ, וה‑VJ שומר אותן מ‑WhatsApp Web ומוסיף אותן כאן. <b>בדמו:</b> שולחים מהטלפון דרך דף שליחת התמונות. תמונה מהטלפון מחכה לאישור (✓) לפני שהיא עולה למסך. תמונות שנוספו מהמחשב נשמרות רק עד רענון הדף.</p>
+      <div class="row">
+        <label class="btn file-btn" for="photoFiles">הוספת תמונות מהמחשב
+          <input type="file" id="photoFiles" accept="image/*" multiple>
+        </label>
+        <a class="btn small" href="#photo">פתיחת דף שליחת התמונות (דמו)</a>
+        <label class="toggle"><input type="checkbox" id="photoModerate"> אישור ידני לפני שידור</label>
+        <label class="toggle" for="photoSeconds">שניות לתמונה <input type="number" id="photoSeconds" min="2" max="60" step="1"></label>
+      </div>
+      <div class="thumbs" id="thumbs"></div>
+    </section>
+
     <section class="panel wide" aria-labelledby="tvTitle">
       <h2 id="tvTitle">שאלות חידון הביטלס <small id="tvTotal"></small></h2>
       <p class="hint">שאלה בכל שורה: <b>שאלה | תשובה נכונה | תשובה שגויה | תשובה שגויה | תשובה שגויה</b>. אלה השאלות שמוצגות <b>על המסך</b>. הן מוגרלות בסדר אקראי, והתשובות מתערבבות. חידון הטלפון (10 שאלות אחרות, עם ניקוד) נמצא בטופס ההרשמה, והמובילים בו מוצגים על המסך כל כמה שאלות.</p>
@@ -417,7 +461,31 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     <div class="drum winner">נרשמת! 🎶</div>
     <p id="jpScore"></p>
     <p>תסתכלו על המסך. אולי תזכו לבחור את השיר הבא!</p>
+    <a class="btn primary" href="#photo">📸 שליחת תמונה למסך</a>
     <button class="btn" id="jpAgain" type="button">הרשמה של משתתף נוסף (לבדיקה)</button>
+  </div>
+  <a class="hint" href="#">← למסך ההופעה</a>
+</main>
+<main class="join-page" id="photoPage">
+  <div class="jp-head">
+    <div class="eyebrow">ערב ביטלס · קיר התמונות</div>
+    <h1>שלחו <span>תמונה</span></h1>
+    <p class="hint">התמונות עולות למסך הגדול באחד השירים, אחרי שהצוות מאשר אותן.</p>
+    <p class="jp-demo">דף הדגמה: התמונות נשמרות בדף, כדי לנסות את קיר התמונות מהצד של הקהל.</p>
+  </div>
+  <form class="jp-form" id="phForm" novalidate>
+    <label class="field" for="phName">השם שלכם (יופיע מתחת לתמונה, לא חובה)<input type="text" id="phName" maxlength="30" autocomplete="off"></label>
+    <label class="btn-spin file-btn" for="phFile" style="text-align:center">📸 בחירת תמונה
+      <input type="file" id="phFile" accept="image/*">
+    </label>
+    <img class="ph-preview" id="phPreview" alt="התמונה שנבחרה" hidden>
+    <p class="jp-error" id="phError" hidden></p>
+    <button class="btn primary" id="phSubmit" type="submit" disabled>שליחה למסך</button>
+  </form>
+  <div class="jp-done" id="phDone" hidden>
+    <div class="drum winner">נשלח! 📸</div>
+    <p>התמונה תעלה למסך באחד השירים.</p>
+    <button class="btn" id="phAgain" type="button">שליחת תמונה נוספת</button>
   </div>
   <a class="hint" href="#">← למסך ההופעה</a>
 </main>
@@ -431,6 +499,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   // The demo sign-up page lives in this same artifact, at #join; its sign-ups go to the page's own database.
   const DEMO_JOIN_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#join";
   const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
+  const DEMO_PHOTO_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#photo";
   const $ = (id) => document.getElementById(id);
 
   const SAMPLE_TRIVIA = [
@@ -542,6 +611,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   state.mode = state.mode || "song";
   state.shirtWins = state.shirtWins || [];
   state.trivia = state.trivia || { text: SAMPLE_TRIVIA, seconds: 15, qrBetween: true };
+  state.photoCfg = state.photoCfg || { moderate: true, seconds: 6 };
   // The first version shipped general music questions; the quiz is Beatles-only now.
   if (state.trivia.text.startsWith("מי כתבה את „ירושלים של זהב”?")) state.trivia.text = SAMPLE_TRIVIA;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
@@ -918,6 +988,11 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       main.textContent = "הגרילו חולצה!";
       main.disabled ||= n === 0;
       $("poolLine").textContent = `${n} בכובע` + (shirts.size === 1 ? " · חולצה אחת חולקה" : shirts.size ? ` · ${shirts.size} חולצות חולקו` : "");
+    } else if (m === "photos") {
+      const air = onAir().length, waiting = allPhotos().filter((p) => p.status === "pending").length;
+      main.textContent = "תמונה הבאה";
+      main.disabled ||= air === 0;
+      $("poolLine").textContent = `${air} תמונות על המסך` + (state.photoCfg.moderate && waiting ? ` · ${waiting} ממתינות לאישור` : "");
     } else {
       const r = fin.ranking.length ? fin.ranking : ranking();
       const ord = ["הראשון", "השני", "השלישי", "הרביעי", "החמישי"];
@@ -959,6 +1034,9 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     $("viewTrivia").hidden = showQr || m !== "trivia";
     $("viewRaffle").hidden = showQr || (m !== "song" && m !== "shirt");
     $("viewFinale").hidden = showQr || m !== "finale";
+    $("viewPhotos").hidden = showQr || m !== "photos";
+    $("stage").classList.toggle("photos", m === "photos" && !showQr);
+    if (m === "photos" && !showQr && slideIdx < 0) nextSlideAt = 0;
     if (showQr) drawQr();
     if (m === "trivia") renderTrivia();
     if (m === "song" || m === "shirt") showRaffleIdle();
@@ -1085,6 +1163,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (spinning) return;
     if (state.mode === "trivia") return tvAdvance();
     if (state.mode === "finale") return finaleNext();
+    if (state.mode === "photos") { nextSlideAt = 0; return; }
     spin();
   }
 
@@ -1104,8 +1183,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     // Presentation clickers send PageDown/PageUp or arrow keys.
     const keys = ["Space", "Enter", "NumpadEnter", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown"];
     if (keys.includes(e.code) && document.activeElement.tagName !== "BUTTON") { e.preventDefault(); mainAction(); }
-    const digit = e.code.match(/^(?:Digit|Numpad)([1-4])$/);
-    if (digit) setMode(["trivia", "song", "shirt", "finale"][digit[1] - 1]);
+    const digit = e.code.match(/^(?:Digit|Numpad)([1-5])$/);
+    if (digit) setMode(["trivia", "song", "shirt", "finale", "photos"][digit[1] - 1]);
     if (e.code === "Escape" && document.body.classList.contains("projection")) setProjection(false);
     if (e.code === "KeyQ") toggleQr();
   });
@@ -1183,7 +1262,9 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   // Sign-up link -> QR code on the stage.
   function drawQr() {
-    const q = $("qr"), url = qrTarget();
+    const forPhotos = state.mode === "photos";
+    $("joinTitle").textContent = forPhotos ? "סרקו ושלחו תמונה למסך" : "סרקו: חידון ביטלס ובחירת שיר";
+    const q = $("qr"), url = forPhotos ? DEMO_PHOTO_URL : qrTarget();
     if (q.dataset.for === url) return;
     q.innerHTML = "";
     q.dataset.for = url;
@@ -1360,10 +1441,143 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     window.scrollTo(0, 0);
   };
 
+  // ---------- Photo wall ----------
+  let dbPhotos = [], localPhotos = [], localSeq = 0;
+  const allPhotos = () => [...dbPhotos, ...localPhotos].sort((a, b) => a.time - b.time);
+  const onAir = () => allPhotos().filter((p) => p.status === "approved" || (!state.photoCfg.moderate && p.status === "pending"));
+  let slideIdx = -1, nextSlideAt = 0, front = "slideA";
+
+  function slideNext() {
+    const list = onAir();
+    $("photoEmpty").textContent = list.length ? "" : "עוד אין תמונות על המסך. שלחו תמונה דרך ה‑QR (מקש Q) או הוסיפו מהמחשב.";
+    $("photoWall").hidden = !list.length;
+    if (!list.length) { slideIdx = -1; return; }
+    slideIdx = (slideIdx + 1) % list.length;
+    const p = list[slideIdx];
+    const incoming = $(front === "slideA" ? "slideB" : "slideA"), outgoing = $(front);
+    $("photoWall").style.setProperty("--slide-s", state.photoCfg.seconds + 1.2 + "s");
+    incoming.onload = () => {
+      incoming.classList.remove("on");
+      void incoming.offsetWidth; // restart the push-in
+      incoming.classList.add("on");
+      outgoing.classList.remove("on");
+      $("photoCap").textContent = p.name ? "📸 " + p.name : "";
+    };
+    incoming.onerror = () => { nextSlideAt = 0; };
+    incoming.src = p.url;
+    front = incoming.id;
+  }
+
+  setInterval(() => {
+    if (state.mode !== "photos" || !$("joinBox").hidden) return;
+    if (Date.now() >= nextSlideAt) { nextSlideAt = Date.now() + state.photoCfg.seconds * 1000; slideNext(); }
+  }, 250);
+
+  async function setPhotoStatus(p, status) {
+    if (p.local) { p.status = status; renderPhotos(); render(); return; }
+    const db = await dbReady;
+    try { await db.collection("photos").doc(p.docId).update({ status }); } catch { toast("העדכון לא נשמר. נסו שוב."); }
+  }
+
+  function renderPhotos() {
+    const box = $("thumbs"), list = allPhotos().reverse();
+    box.innerHTML = "";
+    if (!list.length) box.innerHTML = '<span class="empty">עוד אין תמונות.</span>';
+    list.forEach((p) => {
+      const t = document.createElement("div");
+      t.className = "thumb" + (p.status === "pending" ? " pending" : p.status === "hidden" ? " hidden-photo" : "");
+      const img = Object.assign(document.createElement("img"), { src: p.url, alt: p.name || "תמונה מהקהל", loading: "lazy" });
+      const tag = document.createElement("span");
+      tag.className = "tag";
+      tag.textContent = (p.status === "pending" ? "ממתינה · " : p.status === "hidden" ? "מוסתרת · " : "") + (p.name || (p.local ? "מהמחשב" : "מהקהל"));
+      const acts = document.createElement("div");
+      acts.className = "acts";
+      const ok = Object.assign(document.createElement("button"), { type: "button", className: "ok", textContent: "✓ למסך" });
+      ok.onclick = () => setPhotoStatus(p, "approved");
+      const no = Object.assign(document.createElement("button"), { type: "button", className: "no", textContent: "✕ הסתרה" });
+      no.onclick = () => setPhotoStatus(p, "hidden");
+      if (p.status !== "approved") acts.append(ok);
+      if (p.status !== "hidden") acts.append(no);
+      t.append(img, tag, acts);
+      box.append(t);
+    });
+    const waiting = list.filter((p) => p.status === "pending").length;
+    $("phCount").textContent = list.length ? `${list.length} תמונות` + (waiting ? ` · ${waiting} ממתינות` : "") : "";
+    $("photoModerate").checked = state.photoCfg.moderate;
+    if (document.activeElement !== $("photoSeconds")) $("photoSeconds").value = state.photoCfg.seconds;
+  }
+
+  $("photoFiles").addEventListener("change", (e) => {
+    for (const f of e.target.files) {
+      if (!f.type.startsWith("image/")) continue;
+      localPhotos.push({ id: "local:" + ++localSeq, url: URL.createObjectURL(f), name: "", time: Date.now() + localSeq, status: "approved", local: true });
+    }
+    e.target.value = "";
+    renderPhotos(); render();
+    toast("התמונות נוספו לקיר");
+  });
+  $("photoModerate").onchange = (e) => { state.photoCfg.moderate = e.target.checked; save(); renderPhotos(); render(); };
+  $("photoSeconds").onchange = (e) => {
+    state.photoCfg.seconds = Math.min(60, Math.max(2, Math.round(+e.target.value) || 6));
+    save(); renderPhotos(); render();
+  };
+
+  // The audience's photo page (#photo): shrink on the phone, upload, and queue for approval.
+  let phBlob = null;
+  const getAssets = () => (window.claude?.use ? window.claude.use("assets").catch(() => null) : Promise.resolve(null));
+  function phError(msg) { $("phError").textContent = msg; $("phError").hidden = !msg; }
+  async function shrink(file, max = 1600) {
+    const src = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+      const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = Object.assign(document.createElement("canvas"), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise((res) => c.toBlob(res, "image/jpeg", 0.85));
+    } finally { URL.revokeObjectURL(src); }
+  }
+  $("phFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    phError("");
+    try {
+      phBlob = await shrink(f);
+      $("phPreview").src = URL.createObjectURL(phBlob);
+      $("phPreview").hidden = false;
+      $("phSubmit").disabled = false;
+    } catch { phBlob = null; phError("לא הצלחנו לפתוח את התמונה. נסו תמונה אחרת."); }
+  });
+  $("phForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!phBlob) return phError("קודם בוחרים תמונה.");
+    const [assets, db] = await Promise.all([getAssets(), dbReady]);
+    if (!assets || !db) return phError("שליחת תמונות בדמו עובדת רק לבעלי הדף, כשהוא פתוח ב‑claude.ai.");
+    $("phSubmit").disabled = true;
+    try {
+      const up = await assets.upload(phBlob);
+      await db.collection("photos").add({ assetId: up.id, name: $("phName").value.trim().slice(0, 30), time: Date.now(), status: "pending" });
+      $("phForm").hidden = true;
+      $("phDone").hidden = false;
+    } catch (err) {
+      phError(err?.code === "quota_exceeded" ? "האחסון של הדמו מלא." : "התמונה לא נשלחה. נסו שוב בעוד רגע.");
+      $("phSubmit").disabled = false;
+    }
+  });
+  $("phAgain").onclick = () => {
+    $("phForm").reset();
+    phBlob = null;
+    $("phPreview").hidden = true;
+    $("phSubmit").disabled = true;
+    $("phForm").hidden = false;
+    $("phDone").hidden = true;
+  };
+
   function applyRoute() {
-    const join = location.hash === "#join";
-    document.body.classList.toggle("join-mode", join);
-    if (join) buildJoin();
+    const route = location.hash.slice(1);
+    document.body.classList.toggle("join-mode", route === "join");
+    document.body.classList.toggle("photo-mode", route === "photo");
+    if (route === "join") buildJoin();
   }
   window.addEventListener("hashchange", applyRoute);
   applyRoute();
@@ -1371,6 +1585,19 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   // The show screen hears demo sign-ups live and adds them to the raffles.
   dbReady.then((db) => {
     if (!db) return;
+    db.collection("photos").onSnapshot((snap) => {
+      const before = new Set(dbPhotos.map((p) => p.id));
+      dbPhotos = snap.docs.map((d) => {
+        const x = d.data() || {};
+        // Only an asset id is trusted from a row, and only ever as an image source.
+        const id = typeof x.assetId === "string" && /^[0-9a-f]{32}$/.test(x.assetId) ? x.assetId : "";
+        return { id: "db:" + d.id, docId: d.id, url: id ? "/_blob/" + id : "", name: String(x.name || "").slice(0, 30), time: +x.time || 0,
+          status: x.status === "approved" || x.status === "hidden" ? x.status : "pending" };
+      }).filter((p) => p.url);
+      const fresh = before.size ? dbPhotos.filter((p) => !before.has(p.id)).length : 0;
+      if (fresh) toast(`📸 ${fresh} תמונות חדשות מהקהל`);
+      renderPhotos(); render();
+    });
     let first = true;
     db.collection("signups").onSnapshot((snap) => {
       const found = new Map();
@@ -1391,6 +1618,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   $("beatlesSongs").append(...BEATLES_SONGS.map((t) => Object.assign(document.createElement("option"), { value: t })));
   $("tvText").value = state.trivia.text;
+  renderPhotos();
   renderStage();
 
   pullSheet();
