@@ -2,7 +2,7 @@
  * Creates the sign-up form for the show and its spreadsheet.
  *
  * The audience opens one link (from WhatsApp or the QR on the screen), gives consent,
- * picks a Beatles song, says where they live and which club they're at, and can answer
+ * picks a Beatles song, says where they live (the venue comes pre-filled from tonight's link), and can answer
  * a 10-question Beatles quiz. Every submission:
  *   - adds name + song + quiz score to the "במה" tab (what the raffle screen reads; no phones),
  *   - and, for people who agreed to receive updates, saves or updates them in "אנשי קשר"
@@ -21,9 +21,6 @@ const GROUP_LINK = '';                              // optional: one WhatsApp gr
 // false = the updates consent is a separate, optional box (recommended).
 // true  = signing up for the raffle requires agreeing to receive updates.
 const REQUIRE_UPDATES_CONSENT = false;
-
-// The clubs you play at. Each one gets its own link/QR with the club already filled in.
-const CLUBS = ['מועדון 1', 'מועדון 2', 'מועדון 3'];
 
 const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
 // Optional: a WhatsApp group per area. After choosing their area, people get that area's link.
@@ -113,7 +110,7 @@ const T = {
   phone: 'טלפון נייד (לעדכונים בוואטסאפ)',
   city: 'באיזו עיר אתם גרים?',
   area: 'באיזה אזור?',
-  club: 'באיזה מועדון אתם הערב?',
+  club: 'איפה ההופעה הערב?',
   consent: 'אישור השתתפות',
   updates: 'עדכונים על הופעות באזור שלי',
 };
@@ -133,9 +130,8 @@ function createSongRaffleForm() {
 
   form.addTextItem().setTitle(T.name).setRequired(true);
   form.addListItem().setTitle(T.song).setChoiceValues(SONGS).setRequired(true);
-  const clubItem = CLUBS.length
-    ? form.addListItem().setTitle(T.club).setChoiceValues(CLUBS).setRequired(true)
-    : form.addTextItem().setTitle(T.club).setRequired(true);
+  // Filled in automatically: the show screen puts tonight's venue into the link it shows as a QR.
+  const clubItem = form.addTextItem().setTitle(T.club).setHelpText('ממולא אוטומטית מהלינק של הערב').setRequired(true);
   form.addTextItem()
     .setTitle(T.phone)
     .setRequired(REQUIRE_UPDATES_CONSENT)
@@ -211,11 +207,9 @@ function createSongRaffleForm() {
   PropertiesService.getScriptProperties().setProperty('STAGE_SHEET', ss.getId());
   ScriptApp.newTrigger('onSignup').forForm(form).onFormSubmit().create();
 
-  Logger.log('לינק כללי לקהל: ' + form.shortenFormUrl(form.getPublishedUrl()));
-  CLUBS.forEach((club) => {
-    const url = form.createResponse().withItemResponse(clubItem.createResponse(club)).toPrefilledUrl();
-    Logger.log('לינק ל‑' + club + ' (המועדון כבר מסומן): ' + url);
-  });
+  // __CLUB__ is a placeholder: the show screen replaces it with the venue you type in before each show.
+  Logger.log('להדביק במשחק, בשדה "הלינק שהקהל יסרוק": ' +
+    form.createResponse().withItemResponse(clubItem.createResponse('__CLUB__')).toPrefilledUrl());
   Logger.log('עריכת הטופס: ' + form.getEditUrl());
   Logger.log('הגיליון: ' + ss.getUrl());
   Logger.log('עכשיו בגיליון: קובץ ← שיתוף ← פרסום באינטרנט ← לשונית "במה" ← CSV ← פרסום, ולהדביק את הלינק במשחק.');

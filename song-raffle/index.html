@@ -293,11 +293,20 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         <button class="btn primary" type="submit">חיבור</button>
       </form>
       <div class="pool-line" id="sheetStatus"></div>
-      <label class="hint" for="inviteInput">הלינק שהקהל יסרוק: לינק הטופס (מומלץ) או לינק ההזמנה לקבוצת הוואטסאפ. המשחק יציג ממנו QR על הבמה ובין שאלות החידון:</label>
+      <label class="hint" for="venueInput"><b>איפה מופיעים הערב?</b> מעדכנים לפני כל הופעה. המקום נכנס ללינק ול‑QR, וכל מי שנרשם הערב מסומן איתו.</label>
+      <form class="invite-form" id="venueForm">
+        <input type="text" id="venueInput" placeholder="למשל: בארבי, תל אביב" autocomplete="off" style="direction:rtl;text-align:right">
+        <button class="btn primary" type="submit">שמירה</button>
+      </form>
+      <label class="hint" for="inviteInput">הלינק שהקהל יסרוק: הלינק מיומן ההרצה של הסקריפט (זה שמסתיים ב‑__CLUB__), או לינק לקבוצת הוואטסאפ. המשחק יציג ממנו QR על הבמה ובין שאלות החידון:</label>
       <form class="invite-form" id="inviteForm">
         <input type="text" id="inviteInput" placeholder="https://forms.gle/..." autocomplete="off" inputmode="url">
         <button class="btn primary" type="submit">שמירה</button>
       </form>
+      <div class="row">
+        <button class="btn small" id="copyLinkBtn" type="button">העתקת הלינק של הערב (לשליחה בוואטסאפ)</button>
+        <span class="pool-line" id="venueStatus"></span>
+      </div>
       <p class="hint">
         אפשר גם לייבא צ׳אט מוואטסאפ (בקבוצה ← <b>ייצוא צ׳אט</b> ← „ללא מדיה”): נאסף כל מי שכתב או הצטרף, הודעה שמתחילה ב‑<b>שיר:</b> נשמרת כבקשת שיר ו‑<b>שם:</b> קובעת את השם שיוצג. מספרי טלפון מוצגים רק עם 4 הספרות האחרונות.
       </p>
@@ -862,6 +871,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     $("qrBtn").hidden = !state.invite;
     $("qrBtn").textContent = qrOn ? "הסתרת QR" : "QR להצטרפות";
     if (document.activeElement !== $("inviteInput")) $("inviteInput").value = state.invite || "";
+    if (document.activeElement !== $("venueInput")) $("venueInput").value = state.venue || "";
+    $("venueStatus").textContent = needsVenue() ? "⚠ כתבו איפה מופיעים הערב, אחרת המקום לא יסומן" : state.venue ? `📍 הערב: ${state.venue}` : "";
     if (document.activeElement !== $("sheetInput")) $("sheetInput").value = state.sheetUrl || "";
     if (document.activeElement !== $("tvSeconds")) $("tvSeconds").value = state.trivia.seconds;
     $("tvQr").checked = state.trivia.qrBetween;
@@ -1102,15 +1113,19 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   $("onceOnly").onchange = (e) => { state.onceOnly = e.target.checked; save(); render(); };
   $("soundBtn").onclick = () => { state.sound = !state.sound; save(); render(); };
 
+  // Tonight's sign-up link: the form link from the script carries a __CLUB__ placeholder that becomes the venue.
+  const tonightUrl = () => (state.invite || "").replace(/__CLUB__/g, encodeURIComponent(state.venue || ""));
+  const needsVenue = () => /__CLUB__/.test(state.invite || "") && !state.venue;
+
   // Sign-up link -> QR code on the stage.
   function drawQr() {
-    const q = $("qr");
-    if (q.dataset.for === state.invite) return;
+    const q = $("qr"), url = tonightUrl();
+    if (q.dataset.for === url) return;
     q.innerHTML = "";
-    q.dataset.for = state.invite;
-    if (window.QRCode) new QRCode(q, { text: state.invite, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
-    else q.textContent = state.invite;
-    $("joinLink").textContent = state.invite;
+    q.dataset.for = url;
+    if (window.QRCode) new QRCode(q, { text: url, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+    else q.textContent = url;
+    $("joinLink").textContent = state.venue ? "📍 " + state.venue : url.length <= 45 ? url : "";
   }
   function toggleQr() {
     if (!state.invite || spinning) return;
@@ -1134,6 +1149,18 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     save();
     pullSheet();
   });
+  $("venueForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    state.venue = $("venueInput").value.trim();
+    save(); renderStage();
+    toast(state.venue ? `ההופעה הערב: ${state.venue}` : "המקום נמחק");
+  });
+  $("copyLinkBtn").onclick = () => {
+    if (!state.invite) return toast("קודם הדביקו את הלינק שהקהל יסרוק");
+    if (needsVenue()) return toast("קודם כתבו איפה מופיעים הערב");
+    navigator.clipboard?.writeText(tonightUrl()).then(() => toast("הלינק הועתק. אפשר להדביק בוואטסאפ"), () => toast("ההעתקה נחסמה בדפדפן הזה"))
+      ?? toast("ההעתקה לא נתמכת בדפדפן הזה");
+  };
   $("inviteForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const v = $("inviteInput").value.trim();
