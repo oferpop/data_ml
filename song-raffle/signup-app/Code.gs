@@ -19,7 +19,21 @@
 // ---------- Settings ----------
 const ARTIST = 'שם הלהקה';                       // shown on the page and in the consent texts
 const CONTACT = 'טלפון או מייל ליצירת קשר';      // for removal and privacy requests
-const GROUP_LINK = '';                           // optional: WhatsApp group link shown after signing up
+const GROUP_LINK = '';                           // optional: one WhatsApp group for everyone, shown after signing up
+
+// The free way to send show updates: a WhatsApp Community with an announcement group per area.
+// Paste each area's group invite link (group info → Invite via link). After signing up, people get
+// the button for their own area's group; an area left empty falls back to GROUP_LINK.
+const AREA_GROUPS = {
+  'צפון': '',
+  'חיפה והקריות': '',
+  'שרון': '',
+  'מרכז / גוש דן': '',
+  'ירושלים והסביבה': '',
+  'שפלה': '',
+  'דרום': '',
+  'אילת והערבה': '',
+};
 
 const AREAS = ['צפון', 'חיפה והקריות', 'שרון', 'מרכז / גוש דן', 'ירושלים והסביבה', 'שפלה', 'דרום', 'אילת והערבה'];
 
@@ -152,7 +166,7 @@ function doGet(e) {
   const venue = String((e && e.parameter && e.parameter.venue) || '').slice(0, 60);
   const safeJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
   t.data = safeJson({
-    artist: ARTIST, contact: CONTACT, group: GROUP_LINK, venue, areas: AREAS, songs: SONGS,
+    artist: ARTIST, contact: CONTACT, group: GROUP_LINK, areaGroups: AREA_GROUPS, venue, areas: AREAS, songs: SONGS,
     // The page never gets the right answers; the score is worked out here.
     quiz: QUIZ.map(({ q, right, wrong }) => ({ q, choices: shuffle([right, ...wrong]) })),
   });

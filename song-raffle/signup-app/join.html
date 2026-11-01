@@ -98,6 +98,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
     <p id="score"></p>
     <p>תסתכלו על המסך. אולי תזכו לבחור את השיר הבא!</p>
     <a class="group" id="group" href="#" hidden>להצטרפות לקבוצת הוואטסאפ שלנו</a>
+    <p class="hint" id="groupHint" hidden>שם נעדכן על הופעות באזור שלכם. רק אנחנו כותבים בקבוצה, והמספר שלכם לא מוצג לאחרים.</p>
   </div>
 </main>
 
@@ -150,7 +151,14 @@ $("form").addEventListener("submit", (e) => {
       $("form").hidden = true;
       $("done").hidden = false;
       $("score").textContent = `הניקוד שלך בחידון: ${score} מתוך ${DATA.quiz.length}`;
-      if (DATA.group) { $("group").href = DATA.group; $("group").hidden = false; }
+      // The updates group for the area they picked (or the general group).
+      const link = (DATA.areaGroups || {})[f.area] || DATA.group;
+      if (/^https:\/\/chat\.whatsapp\.com\//.test(link || "")) {
+        $("group").href = link;
+        $("group").textContent = (DATA.areaGroups || {})[f.area] ? `להצטרפות לקבוצת העדכונים של ${f.area} 📲` : "להצטרפות לקבוצת הוואטסאפ שלנו 📲";
+        $("group").hidden = false;
+        $("groupHint").hidden = false;
+      }
       window.scrollTo(0, 0);
     })
     .withFailureHandler(() => { error("ההרשמה לא נשמרה. בדקו את הפרטים ונסו שוב."); $("go").disabled = false; })
