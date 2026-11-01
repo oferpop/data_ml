@@ -1,0 +1,21 @@
+name = "beatles-night-whatsapp-bot"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ARTIST = "שם הלהקה"
+# Optional: tonight's venue, e.g. "בארבי, תל אביב". Update before each show and run `npm run deploy`.
+VENUE = ""
+
+# Create it with:  npx wrangler kv namespace create CONVERSATIONS   and paste the id it prints here.
+[[kv_namespaces]]
+binding = "CONVERSATIONS"
+id = "PASTE_KV_NAMESPACE_ID_HERE"
+
+# Secrets (never in this file):
+#   npx wrangler secret put ANTHROPIC_API_KEY
+#   npx wrangler secret put TWILIO_ACCOUNT_SID
+#   npx wrangler secret put TWILIO_AUTH_TOKEN
+#   npx wrangler secret put SHEET_URL
+#   npx wrangler secret put SHEET_SECRET

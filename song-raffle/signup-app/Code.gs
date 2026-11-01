@@ -186,6 +186,27 @@ function register(f) {
   return score;
 }
 
+// The WhatsApp bot (whatsapp-bot/) posts each finished sign-up here, signed with the shared secret.
+function doPost(e) {
+  const out = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  try {
+    const f = JSON.parse(e.postData.contents);
+    const secret = PropertiesService.getScriptProperties().getProperty('BOT_SECRET');
+    if (!secret || f.secret !== secret) return out({ ok: false, error: 'unauthorized' });
+    register(f);
+    return out({ ok: true });
+  } catch (err) {
+    return out({ ok: false, error: String((err && err.message) || err) });
+  }
+}
+
+// Run once to create the secret the WhatsApp bot uses (SHEET_SECRET in Cloudflare).
+function makeBotSecret() {
+  const secret = Utilities.getUuid() + Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty('BOT_SECRET', secret);
+  Logger.log('הסוד של הבוט (להעתיק ל‑SHEET_SECRET ב‑Cloudflare): ' + secret);
+}
+
 // One row per person (matched by phone or email): a returning fan gets tonight's venue and song added.
 function saveContact(ss, c) {
   const sheet = ss.getSheetByName('אנשי קשר');
