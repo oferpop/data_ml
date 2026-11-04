@@ -132,6 +132,13 @@ function setup() {
   if (contacts) contacts.getRange('A:A').setNumberFormat('@');
   if (!ss.getSheetByName('לפי אזור ועיר')) sortedView(ss, 'לפי אזור ועיר', 5, 4, 3);
   if (!ss.getSheetByName('לפי מועדון')) sortedView(ss, 'לפי מועדון', 6, 5, 4);
+  // Dates as dates, phones as text (keeps the leading 0). Re-applied on every run, so running setup again fixes an older sheet.
+  ss.getSheetByName('נרשמים').getRange('A:A').setNumberFormat('dd/MM/yyyy HH:mm');
+  ['אנשי קשר', 'לפי אזור ועיר', 'לפי מועדון'].forEach((n) => {
+    const sh = ss.getSheetByName(n);
+    sh.getRange('A:A').setNumberFormat('@');
+    sh.getRange('G:H').setNumberFormat('dd/MM/yyyy HH:mm');
+  });
   PropertiesService.getScriptProperties().setProperty('SHEET', ss.getId());
   Logger.log('הגיליון מוכן: ' + ss.getUrl());
   Logger.log('עכשיו: Deploy ← New deployment ← Web app ← Execute as: Me ← Who has access: Anyone ← Deploy. ואז להריץ את links.');
@@ -191,7 +198,7 @@ function register(f) {
   try {
     const ss = SpreadsheetApp.openById(sheetId());
     const now = new Date();
-    ss.getSheetByName('נרשמים').appendRow([now, safe(name), safe(song), phone, safe(email), safe(city), safe(area), safe(venue), updates ? 'כן' : 'לא', score]);
+    ss.getSheetByName('נרשמים').appendRow([now, safe(name), safe(song), asText(phone), safe(email), safe(city), safe(area), safe(venue), updates ? 'כן' : 'לא', score]);
     ss.getSheetByName('במה').appendRow([safe(name), safe(song), score]);
     if (updates) saveContact(ss, { phone, email, name, city, area, venue, song, now });
   } finally {
@@ -228,7 +235,7 @@ function saveContact(ss, c) {
   const i = rows.findIndex((r, idx) => idx > 0 &&
     ((c.phone && normalizePhone(r[0]) === c.phone) || (c.email && normalizeEmail(r[1]) === c.email)));
   if (i < 0) {
-    sheet.appendRow([c.phone, safe(c.email), safe(c.name), safe(c.city), safe(c.area), safe(c.venue), c.now, c.now, safe(c.song)]);
+    sheet.appendRow([asText(c.phone), safe(c.email), safe(c.name), safe(c.city), safe(c.area), safe(c.venue), c.now, c.now, safe(c.song)]);
     return;
   }
   const row = rows[i];
@@ -238,7 +245,7 @@ function saveContact(ss, c) {
     return items.join(', ');
   };
   sheet.getRange(i + 1, 1, 1, 9).setValues([[
-    c.phone || row[0], safe(c.email || row[1]), safe(c.name), safe(c.city), safe(c.area),
+    c.phone ? asText(c.phone) : row[0], safe(c.email || row[1]), safe(c.name), safe(c.city), safe(c.area),
     safe(addTo(row[5], c.venue)), row[6], c.now, safe(addTo(row[8], c.song)),
   ]]);
 }
@@ -249,10 +256,16 @@ function safe(v) {
   return /^[=+\-@]/.test(s) ? "'" + s : s;
 }
 
-// 050-123 4567, +972 50 1234567 and 0501234567 are the same person.
+// A leading apostrophe makes the sheet keep a phone number as text, leading 0 included.
+function asText(phone) {
+  return phone ? "'" + phone : '';
+}
+
+// 050-123 4567, +972 50 1234567, 0501234567 (and 501234567, a number that lost its 0) are the same person.
 function normalizePhone(s) {
   let d = String(s == null ? '' : s).replace(/\D/g, '');
   if (d.startsWith('972')) d = '0' + d.slice(3);
+  if (/^5\d{8}$/.test(d)) d = '0' + d;
   return /^05\d{8}$/.test(d) ? d : '';
 }
 
