@@ -171,16 +171,23 @@ function sheetId() {
   return id;
 }
 
-// The page itself. ?venue=... comes from the show screen's link for tonight.
-function doGet(e) {
-  const t = HtmlService.createTemplateFromFile('join');
-  const venue = String((e && e.parameter && e.parameter.venue) || '').slice(0, 60);
-  const safeJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
-  t.data = safeJson({
+// What the sign-up page needs to draw itself. The page never gets the right quiz answers; the score is worked out here.
+function pageConfig(venue) {
+  return {
     artist: ARTIST, contact: CONTACT, group: GROUP_LINK, areaGroups: AREA_GROUPS, venue, areas: AREAS, songs: SONGS,
-    // The page never gets the right answers; the score is worked out here.
     quiz: QUIZ.map(({ q, right, wrong }) => ({ q, choices: shuffle([right, ...wrong]) })),
-  });
+  };
+}
+
+// The page itself (?venue=... comes from the show screen's link for tonight).
+// With ?config=1 it returns the same settings as JSON, for the public page hosted outside Google (signup-site/).
+function doGet(e) {
+  const venue = String((e && e.parameter && e.parameter.venue) || '').slice(0, 60);
+  if (e && e.parameter && e.parameter.config) {
+    return ContentService.createTextOutput(JSON.stringify(pageConfig(venue))).setMimeType(ContentService.MimeType.JSON);
+  }
+  const t = HtmlService.createTemplateFromFile('join');
+  t.data = JSON.stringify(pageConfig(venue)).replace(/</g, '\\u003c');
   return t.evaluate()
     .setTitle('ערב ביטלס · הרשמה')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -217,6 +224,8 @@ function doPost(e) {
   try {
     const f = JSON.parse(e.postData.contents);
     const secret = PropertiesService.getScriptProperties().getProperty('BOT_SECRET');
+    // The public sign-up page (signup-site/) posts like the page served by doGet, so it needs no secret.
+    if (f.source === 'web') return out({ ok: true, score: register(f) });
     if (!secret || f.secret !== secret) return out({ ok: false, error: 'unauthorized' });
     register(f);
     return out({ ok: true });
