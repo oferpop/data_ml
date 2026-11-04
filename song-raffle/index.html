@@ -1131,8 +1131,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     $("songSlot").hidden = true;
     $("shirtNote").hidden = true;
     $("eyebrow").textContent = "מערבבים את הכובע…";
-    const names = candidates.map((p) => p.name);
-    const total = reduced ? 600 : 4200;
+    // Spin through everyone in the room, not only those still in the hat, so a small pool still moves.
+    // The spin is the moment itself, so it keeps its full length even with reduced motion (only the confetti is skipped).
+    const names = [...new Set(state.people.filter((p) => p.active).map((p) => p.name))];
+    const total = 4200;
     const start = performance.now();
     let last = "";
     const tick = () => {
