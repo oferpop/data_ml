@@ -130,8 +130,8 @@ function setup() {
   tab('במה', ['השם שיוצג על המסך', 'השיר שבחרו', 'ניקוד בחידון']);
   const contacts = tab('אנשי קשר', CONTACT_HEADERS);
   if (contacts) contacts.getRange('A:A').setNumberFormat('@');
-  if (!ss.getSheetByName('לפי אזור ועיר')) sortedView(ss, 'לפי אזור ועיר', 5, 4, 3);
-  if (!ss.getSheetByName('לפי מועדון')) sortedView(ss, 'לפי מועדון', 6, 5, 4);
+  sortedView(ss, 'לפי אזור ועיר', 5, 4, 3);
+  sortedView(ss, 'לפי מועדון', 6, 5, 4);
   // Dates as dates, phones as text (keeps the leading 0). Re-applied on every run, so running setup again fixes an older sheet.
   ss.getSheetByName('נרשמים').getRange('A:A').setNumberFormat('dd/MM/yyyy HH:mm');
   ['אנשי קשר', 'לפי אזור ועיר', 'לפי מועדון'].forEach((n) => {
@@ -144,10 +144,14 @@ function setup() {
   Logger.log('עכשיו: Deploy ← New deployment ← Web app ← Execute as: Me ← Who has access: Anyone ← Deploy. ואז להריץ את links.');
 }
 
+// A read-only view of "אנשי קשר": one formula in A2 fills the tab. Running setup again restores it if it was deleted.
 function sortedView(ss, title, ...sortCols) {
-  const sh = ss.insertSheet(title);
-  sh.appendRow(CONTACT_HEADERS);
-  sh.setFrozenRows(1);
+  let sh = ss.getSheetByName(title);
+  if (!sh) {
+    sh = ss.insertSheet(title);
+    sh.appendRow(CONTACT_HEADERS);
+    sh.setFrozenRows(1);
+  }
   sh.getRange('A2').setFormula("=IFERROR(SORT(FILTER('אנשי קשר'!A2:I, ('אנשי קשר'!A2:A<>\"\")+('אנשי קשר'!B2:B<>\"\")), " +
     sortCols.map((c) => c + ', TRUE').join(', ') + '), "")');
 }
