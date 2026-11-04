@@ -17,8 +17,8 @@
  */
 
 // ---------- Settings ----------
-const ARTIST = 'שם הלהקה';                       // shown on the page and in the consent texts
-const CONTACT = 'טלפון או מייל ליצירת קשר';      // for removal and privacy requests
+const ARTIST = 'magicalband';                      // shown on the page and in the consent texts
+const CONTACT = '0524374422';      // for removal and privacy requests
 const GROUP_LINK = '';                           // optional: one WhatsApp group for everyone, shown after signing up
 
 // The free way to send show updates: a WhatsApp Community with an announcement group per area.
