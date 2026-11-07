@@ -636,6 +636,10 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   state.shirtWins = state.shirtWins || [];
   state.trivia = state.trivia || { text: SAMPLE_TRIVIA, seconds: 15, qrBetween: true };
   state.photoCfg = state.photoCfg || { moderate: true, seconds: 6 };
+  // The band's own sign-up page and its sheet's "במה" tab, so a fresh browser is connected from the start.
+  // Clearing either field in the panel keeps it cleared.
+  if (state.sheetUrl === undefined) state.sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRginqbl2Xc1J4wMzvkdJR1zxEgCjwQLr1HD5FLYIpLSfUqm0ImTyCOyt5iv0y3ZSSU7YSIN__PDMAW/pub?gid=183652620&single=true&output=csv";
+  if (state.invite === undefined) state.invite = "https://oferpop.github.io/data_ml/song-raffle/signup-site/?venue=__CLUB__";
   // The first version shipped general music questions; the quiz is Beatles-only now.
   if (state.trivia.text.startsWith("מי כתבה את „ירושלים של זהב”?")) state.trivia.text = SAMPLE_TRIVIA;
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {} };
