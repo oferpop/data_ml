@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ערב ביטלס · שליחת תמונה</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@700&family=Assistant:wght@400;600;800&display=swap">
+<style>
+/* The audience's sign-up page: the show screen's dark stage under an amber spotlight, sized for a phone. */
+:root {
+  --stage: #170f2b;
+  --curtain: #2b1436;
+  --panel: #21173a;
+  --spot: #ffc94a;
+  --spot-ink: #2a1600;
+  --ink: #f6eedf;
+  --muted: #b5a6c8;
+  --line: #3d2f5c;
+  --danger: #ff7a7a;
+  --font-display: "Karantina", "Assistant", "Arial Hebrew", sans-serif;
+  --font-body: "Assistant", "Segoe UI", "Arial Hebrew", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--stage); }
+body {
+  margin: 0; color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+  background: radial-gradient(ellipse 90% 40% at 50% 0%, rgba(255, 201, 74, .18), transparent 70%), var(--stage);
+}
+main { display: grid; gap: 18px; max-width: 520px; margin: 0 auto; }
+.eyebrow { font-size: .8rem; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--font-display); font-size: 3.2rem; line-height: 1; margin: 0; }
+h1 span { color: var(--spot); }
+.head { display: grid; gap: 6px; }
+.head p { margin: 0; }
+.hint { color: var(--muted); font-size: .9rem; }
+form { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; font-weight: 600; }
+input[type="text"], input[type="tel"], input[type="email"], select {
+  font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; width: 100%;
+}
+.check { display: flex; gap: 10px; align-items: flex-start; font-size: .95rem; }
+.check input { accent-color: var(--spot); width: 20px; height: 20px; flex: none; margin-top: 2px; }
+fieldset { border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 16px; margin: 0; min-width: 0; }
+legend { font-weight: 800; padding: 0 6px; }
+.q p { margin: 0 0 4px; font-weight: 600; }
+.q label { display: flex; gap: 10px; align-items: center; padding: 5px 0; }
+.q input { accent-color: var(--spot); width: 18px; height: 18px; flex: none; }
+.error { color: var(--danger); margin: 0; }
+.go {
+  background: var(--spot); color: var(--spot-ink); border: 0; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-display); font-size: 2.2rem; padding: 6px 48px 2px; justify-self: center;
+  box-shadow: 0 8px 30px rgba(255, 201, 74, .35);
+}
+.go:disabled { opacity: .5; cursor: wait; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid var(--spot); outline-offset: 2px; }
+.done { display: grid; gap: 14px; justify-items: center; text-align: center; padding-block: 32px; }
+.done .big { font-family: var(--font-display); font-size: 4.4rem; line-height: 1; color: var(--spot); text-shadow: 0 0 40px rgba(255, 201, 74, .45); }
+.done p { margin: 0; font-size: 1.15rem; }
+.group { background: #25d366; color: #062b14; font-weight: 800; text-decoration: none; padding: 10px 20px; border-radius: 999px; }
+</style>
+<style>
+.pick { position: relative; overflow: hidden; display: block; text-align: center; }
+.pick input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.preview { max-width: 100%; max-height: 55vh; border-radius: 12px; object-fit: contain; justify-self: center; }
+.send { background: transparent; color: var(--ink); border: 1px solid var(--spot); border-radius: 999px; padding: 10px 24px; font: inherit; font-weight: 800; cursor: pointer; justify-self: center; }
+.send:disabled { opacity: .45; cursor: not-allowed; }
+.link { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="head">
+    <div class="eyebrow">ערב ביטלס · קיר התמונות</div>
+    <h1>שלחו <span>תמונה</span></h1>
+    <p class="hint">התמונות עולות למסך הגדול באחד השירים, אחרי שהצוות מאשר אותן.</p>
+  </div>
+
+  <form id="form" novalidate>
+    <label class="field" for="name">השם שלכם (יופיע מתחת לתמונה, לא חובה)<input type="text" id="name" maxlength="30" autocomplete="given-name"></label>
+    <label class="go pick" for="file">📸 בחירת תמונה<input type="file" id="file" accept="image/*"></label>
+    <img class="preview" id="preview" alt="התמונה שנבחרה" hidden>
+    <p class="error" id="error" hidden></p>
+    <button class="send" id="send" type="submit" disabled>שליחה למסך</button>
+  </form>
+
+  <div class="done" id="done" hidden>
+    <div class="big">נשלח! 📸</div>
+    <p>התמונה תעלה למסך באחד השירים.</p>
+    <button class="send" id="again" type="button">שליחת תמונה נוספת</button>
+  </div>
+
+  <a class="hint link" href="./">להרשמה להגרלות ←</a>
+</main>
+
+<script>
+// Photos go to the band's Apps Script web app, which saves them to the band's Google Drive.
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbzAQc35ycRio8v5q58rCsQv79egDyltZy_fdMLgwCHkA-wd2mzFpVio8u_FMWcSL_hq/exec";
+const $ = (id) => document.getElementById(id);
+let jpeg = null; // base64 JPEG, shrunk on the phone
+
+function error(msg) { $("error").textContent = msg; $("error").hidden = !msg; }
+
+// Any photo the phone can show becomes a JPEG of at most 1600px, so uploads stay small on a busy venue network.
+async function shrink(file, max = 1600) {
+  const src = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = Object.assign(document.createElement("canvas"), { width: Math.round(img.naturalWidth * k), height: Math.round(img.naturalHeight * k) });
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.85);
+  } finally { URL.revokeObjectURL(src); }
+}
+
+$("file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  error("");
+  try {
+    const url = await shrink(f);
+    jpeg = url.slice(url.indexOf(",") + 1);
+    $("preview").src = url;
+    $("preview").hidden = false;
+    $("send").disabled = false;
+  } catch {
+    jpeg = null;
+    error("לא הצלחנו לפתוח את התמונה. נסו תמונה אחרת.");
+  }
+});
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!jpeg) return error("קודם בוחרים תמונה.");
+  $("send").disabled = true;
+  $("send").textContent = "שולחים…";
+  try {
+    const res = await fetch(SHEET_URL, { method: "POST", credentials: "omit", body: JSON.stringify({ source: "photo", name: $("name").value.trim(), image: jpeg }) });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error);
+    $("form").hidden = true;
+    $("done").hidden = false;
+  } catch {
+    error("התמונה לא נשלחה. בדקו את החיבור ונסו שוב.");
+    $("send").disabled = false;
+  }
+  $("send").textContent = "שליחה למסך";
+});
+
+$("again").onclick = () => {
+  $("form").reset();
+  jpeg = null;
+  $("preview").hidden = true;
+  $("send").disabled = true;
+  $("form").hidden = false;
+  $("done").hidden = true;
+};
+</script>
+</body>
+</html>

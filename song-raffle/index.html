@@ -436,12 +436,12 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
     <section class="panel wide" aria-labelledby="phTitle">
       <h2 id="phTitle">קיר תמונות <small id="phCount"></small></h2>
-      <p class="hint">התמונות מתחלפות על המסך במצב „קיר תמונות” (מקש 5). <b>בהופעה:</b> הקהל שולח תמונות לקבוצת הוואטסאפ, וה‑VJ שומר אותן מ‑WhatsApp Web ומוסיף אותן כאן. <b>בדמו:</b> שולחים מהטלפון דרך דף שליחת התמונות. תמונה מהטלפון מחכה לאישור (✓) לפני שהיא עולה למסך. תמונות שנוספו מהמחשב נשמרות רק עד רענון הדף.</p>
+      <p class="hint">התמונות מתחלפות על המסך במצב „קיר תמונות” (מקש 5). <b>בהופעה:</b> הקהל שולח תמונות לקבוצת הוואטסאפ, וה‑VJ שומר אותן מ‑WhatsApp Web ומוסיף אותן כאן. <b>או:</b> הקהל שולח מהטלפון בדף שליחת התמונות (QR במקש Q כשקיר התמונות פתוח), והתמונות נשמרות בדרייב של הלהקה. תמונה מהטלפון מחכה לאישור (✓) לפני שהיא עולה למסך. תמונות שנוספו מהמחשב נשמרות רק עד רענון הדף.</p>
       <div class="row">
         <label class="btn file-btn" for="photoFiles">הוספת תמונות מהמחשב
           <input type="file" id="photoFiles" accept="image/*" multiple>
         </label>
-        <a class="btn small" href="#photo">פתיחת דף שליחת התמונות (דמו)</a>
+        <a class="btn small" href="https://oferpop.github.io/data_ml/song-raffle/signup-site/photo.html" target="_blank" rel="noopener">פתיחת דף שליחת התמונות</a>
         <label class="toggle"><input type="checkbox" id="photoModerate"> אישור ידני לפני שידור</label>
         <label class="toggle" for="photoSeconds">שניות לתמונה <input type="number" id="photoSeconds" min="2" max="60" step="1"></label>
       </div>
@@ -524,7 +524,9 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   // The demo sign-up page lives in this same artifact, at #join; its sign-ups go to the page's own database.
   const DEMO_JOIN_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#join";
   const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
-  const DEMO_PHOTO_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#photo";
+  const PHOTO_PAGE_URL = "https://oferpop.github.io/data_ml/song-raffle/signup-site/photo.html";
+  // The band's Apps Script web app: tonight's sign-ups and photos, read directly (no publishing delay).
+  const SHEET_API = "https://script.google.com/macros/s/AKfycbzAQc35ycRio8v5q58rCsQv79egDyltZy_fdMLgwCHkA-wd2mzFpVio8u_FMWcSL_hq/exec";
   const $ = (id) => document.getElementById(id);
 
   const SAMPLE_TRIVIA = [
@@ -637,6 +639,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   state.shirtWins = state.shirtWins || [];
   state.trivia = state.trivia || { text: SAMPLE_TRIVIA, seconds: 15, qrBetween: true };
   state.photoCfg = state.photoCfg || { moderate: true, seconds: 6 };
+  state.photoStatus = state.photoStatus || {}; // approvals of photos from the photo page, by Drive file id
   // The band's own sign-up page and its sheet's "במה" tab, so a fresh browser is connected from the start.
   // Clearing either field in the panel keeps it cleared.
   if (state.sheetUrl === undefined) state.sheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRginqbl2Xc1J4wMzvkdJR1zxEgCjwQLr1HD5FLYIpLSfUqm0ImTyCOyt5iv0y3ZSSU7YSIN__PDMAW/pub?gid=183652620&single=true&output=csv";
@@ -747,21 +750,60 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     return found;
   }
 
+  // Rows from the web app's ?stage=1: { name, song, score }.
+  function fromRows(rows) {
+    const found = new Map();
+    for (const r of rows || []) {
+      const name = cleanName(String(r.name || "")).slice(0, 30);
+      if (name) found.set(name, { name, song: String(r.song || "").trim().slice(0, 80), score: typeof r.score === "number" ? r.score : null });
+    }
+    return found;
+  }
+
+  function applySignups(found, where) {
+    const added = found.size ? mergePeople(found) : 0;
+    save(); render();
+    if (state.mode === "finale" && fin.step === 0) renderFinale();
+    $("sheetStatus").textContent = `✓ ${found.size} נרשמו ${where} · עודכן ב‑${new Date().toLocaleTimeString("he-IL")}`;
+    if (added) toast(`${added} נרשמים חדשים נכנסו להגרלה`);
+  }
+
   async function pullSheet() {
+    // The web app answers at once; the published CSV is the fallback (Google refreshes it only every few minutes).
+    try {
+      const r = await fetch(SHEET_API + "?stage=1", { credentials: "omit", cache: "no-store" });
+      applySignups(fromRows((await r.json()).rows), "בדף ההרשמה");
+      return;
+    } catch {}
     const url = state.sheetUrl;
     if (!url) { $("sheetStatus").textContent = ""; return; }
     try {
       const r = await fetch(url + (url.includes("?") ? "&" : "?") + "t=" + Date.now(), { cache: "no-store" });
       if (!r.ok) throw new Error(String(r.status));
-      const found = fromCSV(await r.text());
-      const added = mergePeople(found);
-      save(); render();
-      if (state.mode === "finale" && fin.step === 0) renderFinale();
-      $("sheetStatus").textContent = `✓ ${found.size} נרשמו בטופס · עודכן ב‑${new Date().toLocaleTimeString("he-IL")}`;
-      if (added) toast(`${added} נרשמים חדשים נכנסו להגרלה`);
+      applySignups(fromCSV(await r.text()), "בטופס");
     } catch {
-      $("sheetStatus").textContent = "אין גישה לגיליון מכאן. בדקו שזה לינק „פרסום באינטרנט” בפורמט CSV, או פתחו את המשחק מהקובץ index.html. אפשר גם להוריד את הלשונית כ‑CSV ולייבא אותה.";
+      $("sheetStatus").textContent = "אין גישה לגיליון מכאן. פתחו את המשחק מהכתובת ב‑GitHub (oferpop.github.io), או הורידו את הלשונית „במה” כ‑CSV וייבאו אותה.";
     }
+  }
+
+  // Photos sent from the public photo page, saved in the band's Drive; approval stays on this screen.
+  let drivePhotos = [];
+  async function pullPhotos() {
+    try {
+      const r = await fetch(SHEET_API + "?photos=1", { credentials: "omit", cache: "no-store" });
+      const list = (await r.json()).photos || [];
+      const before = new Set(drivePhotos.map((p) => p.id));
+      drivePhotos = list.filter((x) => /^[A-Za-z0-9_-]{10,}$/.test(x.id)).map((x) => ({
+        id: "drive:" + x.id, driveId: x.id, drive: true,
+        url: "https://drive.google.com/thumbnail?id=" + x.id + "&sz=w1600",
+        name: String(x.name || "").slice(0, 30), time: +x.time || 0,
+        status: state.photoStatus[x.id] || "pending",
+      }));
+      const fresh = before.size ? drivePhotos.filter((p) => !before.has(p.id)).length : 0;
+      if (fresh) toast(`📸 ${fresh} תמונות חדשות מהקהל ממתינות לאישור`);
+      renderPhotos(); render();
+      if (state.mode === "photos" && !onAir().length) slideNext();
+    } catch {}
   }
 
   // ---------- Pools ----------
@@ -1331,7 +1373,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   function drawQr() {
     const forPhotos = state.mode === "photos";
     $("joinTitle").textContent = forPhotos ? "סרקו ושלחו תמונה למסך" : "סרקו: חידון ביטלס ובחירת שיר";
-    const q = $("qr"), url = forPhotos ? DEMO_PHOTO_URL : qrTarget();
+    const q = $("qr"), url = forPhotos ? PHOTO_PAGE_URL : qrTarget();
     if (q.dataset.for === url) return;
     q.innerHTML = "";
     q.dataset.for = url;
@@ -1512,7 +1554,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   // ---------- Photo wall ----------
   let dbPhotos = [], localPhotos = [], localSeq = 0;
-  const allPhotos = () => [...dbPhotos, ...localPhotos].sort((a, b) => a.time - b.time);
+  const allPhotos = () => [...drivePhotos, ...dbPhotos, ...localPhotos].sort((a, b) => a.time - b.time);
   const onAir = () => allPhotos().filter((p) => p.status === "approved" || (!state.photoCfg.moderate && p.status === "pending"));
   let slideIdx = -1, nextSlideAt = 0, front = "slideA";
 
@@ -1547,6 +1589,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   async function setPhotoStatus(p, status) {
     if (p.local) { p.status = status; renderPhotos(); render(); return; }
+    if (p.drive) { state.photoStatus[p.driveId] = status; p.status = status; save(); renderPhotos(); render(); return; }
     const db = await dbReady;
     try { await db.collection("photos").doc(p.docId).update({ status }); } catch { toast("העדכון לא נשמר. נסו שוב."); }
   }
@@ -1696,6 +1739,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   pullSheet();
   setInterval(pullSheet, 15000);
+  pullPhotos();
+  setInterval(pullPhotos, 15000);
 
   window.__parseChat = parseChat; // exposed for testing
   window.__fromCSV = fromCSV;

@@ -139,7 +139,11 @@ function setup() {
     sh.getRange('A:A').setNumberFormat('@');
     sh.getRange('G:H').setNumberFormat('dd/MM/yyyy HH:mm');
   });
-  PropertiesService.getScriptProperties().setProperty('SHEET', ss.getId());
+  tab('תמונות', ['זמן', 'שם', 'קובץ']);
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('SHEET', ss.getId());
+  // Photos from the audience go to their own Drive folder, shared by link so the show screen can show them.
+  if (!props.getProperty('PHOTO_FOLDER')) props.setProperty('PHOTO_FOLDER', DriveApp.createFolder('ערב ביטלס – תמונות מהקהל').getId());
   Logger.log('הגיליון מוכן: ' + ss.getUrl());
   Logger.log('עכשיו: Deploy ← New deployment ← Web app ← Execute as: Me ← Who has access: Anyone ← Deploy. ואז להריץ את links.');
 }
@@ -183,9 +187,12 @@ function pageConfig(venue) {
 // With ?config=1 it returns the same settings as JSON, for the public page hosted outside Google (signup-site/).
 function doGet(e) {
   const venue = String((e && e.parameter && e.parameter.venue) || '').slice(0, 60);
-  if (e && e.parameter && e.parameter.config) {
-    return ContentService.createTextOutput(JSON.stringify(pageConfig(venue))).setMimeType(ContentService.MimeType.JSON);
-  }
+  const p = (e && e.parameter) || {};
+  const json = (o) => ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
+  if (p.config) return json(pageConfig(venue));
+  // For the show screen: tonight's names, songs and scores (never phones or emails), and the photos sent in.
+  if (p.stage) return json({ rows: readRows('במה').map((r) => ({ name: String(r[0]), song: String(r[1]), score: r[2] === '' ? null : Number(r[2]) })) });
+  if (p.photos) return json({ photos: readRows('תמונות').map((r) => ({ id: String(r[2]), name: String(r[1]), time: new Date(r[0]).getTime() || 0 })).filter((x) => x.id) });
   const t = HtmlService.createTemplateFromFile('join');
   t.data = JSON.stringify(pageConfig(venue)).replace(/</g, '\\u003c');
   return t.evaluate()
@@ -226,12 +233,40 @@ function doPost(e) {
     const secret = PropertiesService.getScriptProperties().getProperty('BOT_SECRET');
     // The public sign-up page (signup-site/) posts like the page served by doGet, so it needs no secret.
     if (f.source === 'web') return out({ ok: true, score: register(f) });
+    if (f.source === 'photo') return out({ ok: true, id: savePhoto(f) });
     if (!secret || f.secret !== secret) return out({ ok: false, error: 'unauthorized' });
     register(f);
     return out({ ok: true });
   } catch (err) {
     return out({ ok: false, error: String((err && err.message) || err) });
   }
+}
+
+// The data rows of a tab (without its header row).
+function readRows(name) {
+  const sheet = SpreadsheetApp.openById(sheetId()).getSheetByName(name);
+  if (!sheet) return [];
+  return sheet.getDataRange().getValues().slice(1).filter((r) => r.some((c) => c !== ''));
+}
+
+// A photo from the public photo page: a JPEG (the page converts every photo) saved to the photos folder.
+function savePhoto(f) {
+  const data = String(f.image || '');
+  if (!/^[A-Za-z0-9+/=]+$/.test(data) || data.length > 8000000) throw new Error('image');
+  const bytes = Utilities.base64Decode(data);
+  if (bytes[0] !== -1 || bytes[1] !== -40) throw new Error('image'); // JPEG starts with FF D8
+  const name = String(f.name == null ? '' : f.name).trim().slice(0, 30);
+  const folder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER'));
+  const file = folder.createFile(Utilities.newBlob(bytes, 'image/jpeg', 'photo-' + Date.now() + '.jpg'));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    SpreadsheetApp.openById(sheetId()).getSheetByName('תמונות').appendRow([new Date(), safe(name), file.getId()]);
+  } finally {
+    lock.releaseLock();
+  }
+  return file.getId();
 }
 
 // Run once to create the secret the WhatsApp bot uses (SHEET_SECRET in Cloudflare).
