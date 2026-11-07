@@ -171,7 +171,7 @@ textarea { min-height: 84px; resize: vertical; }
 .file-btn { position: relative; overflow: hidden; }
 .file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .toggle { display: flex; align-items: center; gap: 8px; font-size: .95rem; cursor: pointer; border-radius: 6px; }
-.toggle input { accent-color: var(--spot); width: 18px; height: 18px; }
+.toggle input[type="checkbox"] { accent-color: var(--spot); width: 18px; height: 18px; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; max-height: 320px; overflow-y: auto; padding: 2px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px;
@@ -244,6 +244,18 @@ body.join-mode #joinPage, body.photo-mode #photoPage { display: grid; gap: 18px;
 .jp-done { display: grid; gap: 14px; justify-items: center; text-align: center; padding-block: 24px; }
 .jp-done .drum { font-size: clamp(3rem, 16vw, 5rem); }
 .jp-done p { margin: 0; font-size: 1.15rem; }
+
+/* Participant list */
+.table-wrap { overflow-x: auto; }
+.plist { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.plist th, .plist td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: start; vertical-align: middle; }
+.plist th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+.plist td.num { color: var(--muted); }
+.plist .st { font-size: .9rem; white-space: nowrap; }
+.plist .st.won { color: var(--spot); font-weight: 600; }
+.plist tr.off td { color: var(--muted); }
+.plist tr.off .pname { text-decoration: line-through; }
+.plist .pname { font-weight: 800; }
 
 /* Projection mode: a clean black window for capture into Resolume (black keys out with Add/Screen blending). */
 .proj-exit { display: none; }
@@ -337,6 +349,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       <button class="btn small" id="fsBtn" type="button">מסך מלא</button>
       <button class="btn small" id="qrBtn" type="button">QR להצטרפות</button>
       <button class="btn small" id="projBtn" type="button">מצב הקרנה (Resolume)</button>
+      <button class="btn small" id="toListBtn" type="button">רשימת המשתתפים ↓</button>
     </div>
   </section>
 
@@ -408,6 +421,17 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
         </div>
       </section>
     </div>
+
+    <section class="panel wide" aria-labelledby="listTitle" id="listPanel">
+      <h2 id="listTitle">רשימת המשתתפים <small id="listCount"></small></h2>
+      <input type="text" id="listSearch" placeholder="חיפוש לפי שם או שיר…" autocomplete="off">
+      <div class="table-wrap">
+        <table class="plist">
+          <thead><tr><th>#</th><th>שם</th><th>שיר שביקש</th><th>חידון</th><th>מצב</th><th></th></tr></thead>
+          <tbody id="plistBody"></tbody>
+        </table>
+      </div>
+    </section>
 
     <section class="panel wide" aria-labelledby="phTitle">
       <h2 id="phTitle">קיר תמונות <small id="phCount"></small></h2>
@@ -1023,6 +1047,42 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     fillList($("shirtList"), state.shirtWins, "עוד לא הוגרלה חולצה.", () => "👕 חולצה");
     $("shirtCount").textContent = state.shirtWins.length ? `${state.shirtWins.length}` : "";
     $("undoShirtBtn").disabled = !state.shirtWins.length;
+    renderList();
+  }
+
+  // The full participant table: who signed up, what they asked for, their quiz score and where they stand tonight.
+  function renderList() {
+    const won = wonNames(), shirts = shirtNames();
+    const q = $("listSearch").value.trim().toLowerCase();
+    const body = $("plistBody");
+    body.innerHTML = "";
+    const rows = state.people.map((p, i) => ({ p, i })).filter(({ p }) => !q || p.name.toLowerCase().includes(q) || (p.song || "").toLowerCase().includes(q));
+    $("listCount").textContent = state.people.length ? `${state.people.length} משתתפים · ${songPool().length} בכובע` : "";
+    if (!rows.length) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6; td.className = "empty";
+      td.textContent = state.people.length ? "אין משתתפים שמתאימים לחיפוש." : "עדיין אין משתתפים.";
+      tr.append(td); body.append(tr);
+      return;
+    }
+    rows.forEach(({ p, i }) => {
+      const tr = document.createElement("tr");
+      if (!p.active) tr.className = "off";
+      const cell = (text, cls) => { const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; tr.append(td); return td; };
+      cell(i + 1, "num");
+      cell(p.name, "pname");
+      cell(p.song || "—");
+      cell(typeof p.score === "number" ? `${p.score}/10` : "—", "num");
+      const status = !p.active ? "הוצא מההגרלות"
+        : [won.has(p.name) && "זכה בשיר ★", shirts.has(p.name) && "זכה בחולצה 👕"].filter(Boolean).join(" · ") || "בכובע";
+      cell(status, "st" + (won.has(p.name) || shirts.has(p.name) ? " won" : ""));
+      const td = document.createElement("td");
+      const btn = Object.assign(document.createElement("button"), { type: "button", className: "btn small", textContent: p.active ? "הוצאה" : "החזרה" });
+      btn.onclick = () => { p.active = !p.active; save(); render(); };
+      td.append(btn); tr.append(td);
+      body.append(tr);
+    });
   }
 
   // Which view the big screen shows.
@@ -1286,6 +1346,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     document.activeElement?.blur?.(); // so Space / the clicker reach the stage right away
   }
   $("projBtn").onclick = () => setProjection(true);
+  $("toListBtn").onclick = () => $("listPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("listSearch").addEventListener("input", renderList);
   $("projExit").onclick = () => setProjection(false);
 
   $("sheetForm").addEventListener("submit", (e) => {
