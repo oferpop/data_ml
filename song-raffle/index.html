@@ -292,6 +292,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     <button class="mode-btn" role="tab" data-mode="shirt" type="button"><b>הגרלת חולצה</b><small>באמצע ההופעה<kbd>מקש 3</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="finale" type="button"><b>שיר הסיום</b><small>הכי מבוקש הערב<kbd>מקש 4</kbd></small></button>
     <button class="mode-btn" role="tab" data-mode="photos" type="button"><b>קיר תמונות</b><small>תמונות מהקהל<kbd>מקש 5</kbd></small></button>
+    <button class="mode-btn" role="tab" data-mode="lights" type="button"><b>אורות קהל</b><small>הטלפונים נדלקים<kbd>מקש 6</kbd></small></button>
   </nav>
 
   <section class="stage" id="stage" aria-live="polite">
@@ -525,6 +526,8 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   const DEMO_JOIN_URL = "https://claude.ai/artifact/DTgEVndMjzmpnrowEi8Cj4#join";
   const dbReady = window.claude?.use ? window.claude.use("db").catch(() => null) : Promise.resolve(null);
   const PHOTO_PAGE_URL = "https://oferpop.github.io/data_ml/song-raffle/signup-site/photo.html";
+  // Audience lights (lights.html): the QR goes to the audience page, the main button opens the band's control desk.
+  const LIGHTS_URL = "https://oferpop.github.io/data_ml/song-raffle/lights.html";
   // The band's Apps Script web app: tonight's sign-ups and photos, read directly (no publishing delay).
   const SHEET_API = "https://script.google.com/macros/s/AKfycbzAQc35ycRio8v5q58rCsQv79egDyltZy_fdMLgwCHkA-wd2mzFpVio8u_FMWcSL_hq/exec";
   const $ = (id) => document.getElementById(id);
@@ -1059,6 +1062,9 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
       main.textContent = "הגרילו חולצה!";
       main.disabled ||= n === 0;
       $("poolLine").textContent = `${n} בכובע` + (shirts.size === 1 ? " · חולצה אחת חולקה" : shirts.size ? ` · ${shirts.size} חולצות חולקו` : "");
+    } else if (m === "lights") {
+      main.textContent = "פתיחת שולחן האורות ↗";
+      $("poolLine").textContent = "הקהל סורק ולוחץ „להדליק אותי”. את הצבעים מפעילים משולחן האורות.";
     } else if (m === "photos") {
       const air = onAir().length, waiting = allPhotos().filter((p) => p.status === "pending").length;
       main.textContent = "תמונה הבאה";
@@ -1136,7 +1142,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   let qrOn = false;
   function renderStage() {
     const m = state.mode;
-    const showQr = qrOn || (m === "trivia" && tv.phase === "qr");
+    const showQr = qrOn || (m === "trivia" && tv.phase === "qr") || m === "lights";
     $("joinBox").hidden = !showQr;
     $("viewTrivia").hidden = showQr || m !== "trivia";
     $("viewRaffle").hidden = showQr || (m !== "song" && m !== "shirt");
@@ -1273,6 +1279,7 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
     if (state.mode === "trivia") return tvAdvance();
     if (state.mode === "finale") return finaleNext();
     if (state.mode === "photos") { nextSlideAt = 0; return; }
+    if (state.mode === "lights") return;
     spin();
   }
 
@@ -1285,15 +1292,16 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
   }
 
   // ---------- Events ----------
-  $("mainBtn").onclick = mainAction;
+  // On the lights segment the big button opens the control desk in its own tab; keys and the clicker do nothing there.
+  $("mainBtn").onclick = () => (state.mode === "lights" ? window.open(LIGHTS_URL + "#control", "_blank", "noopener") : mainAction());
   document.querySelectorAll(".mode-btn").forEach((b) => (b.onclick = () => { setMode(b.dataset.mode); b.blur(); }));
   document.addEventListener("keydown", (e) => {
     if (typing()) return;
     // Presentation clickers send PageDown/PageUp or arrow keys.
     const keys = ["Space", "Enter", "NumpadEnter", "PageDown", "PageUp", "ArrowRight", "ArrowLeft", "ArrowDown"];
     if (keys.includes(e.code) && document.activeElement.tagName !== "BUTTON") { e.preventDefault(); mainAction(); }
-    const digit = e.code.match(/^(?:Digit|Numpad)([1-5])$/);
-    if (digit) setMode(["trivia", "song", "shirt", "finale", "photos"][digit[1] - 1]);
+    const digit = e.code.match(/^(?:Digit|Numpad)([1-6])$/);
+    if (digit) setMode(["trivia", "song", "shirt", "finale", "photos", "lights"][digit[1] - 1]);
     if (e.code === "Escape" && document.body.classList.contains("projection")) setProjection(false);
     if (e.code === "KeyQ") toggleQr();
   });
@@ -1371,15 +1379,15 @@ body.projection .proj-exit:hover, body.projection .proj-exit:focus-visible { opa
 
   // Sign-up link -> QR code on the stage.
   function drawQr() {
-    const forPhotos = state.mode === "photos";
-    $("joinTitle").textContent = forPhotos ? "סרקו ושלחו תמונה למסך" : "סרקו: חידון ביטלס ובחירת שיר";
-    const q = $("qr"), url = forPhotos ? PHOTO_PAGE_URL : qrTarget();
+    const forPhotos = state.mode === "photos", forLights = state.mode === "lights";
+    $("joinTitle").textContent = forLights ? "סרקו והדליקו את הטלפון ✨" : forPhotos ? "סרקו ושלחו תמונה למסך" : "סרקו: חידון ביטלס ובחירת שיר";
+    const q = $("qr"), url = forLights ? LIGHTS_URL : forPhotos ? PHOTO_PAGE_URL : qrTarget();
     if (q.dataset.for === url) return;
     q.innerHTML = "";
     q.dataset.for = url;
     if (window.QRCode) new QRCode(q, { text: url, width: 480, height: 480, colorDark: "#170f2b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
     else q.textContent = url;
-    $("joinLink").textContent = state.venue ? "📍 " + state.venue : state.invite ? "" : "דף ההרשמה (דמו)";
+    $("joinLink").textContent = forLights ? "" : state.venue ? "📍 " + state.venue : state.invite ? "" : "דף ההרשמה (דמו)";
   }
   function toggleQr() {
     if (spinning) return;
