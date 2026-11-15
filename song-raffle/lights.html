@@ -112,7 +112,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
     <h2>אפקט</h2>
     <div class="grid" id="effects"></div>
     <div class="row">
-      <label class="small" for="bpm">BPM</label><input type="number" id="bpm" min="40" max="220" value="120">
+      <label class="small" for="bpm">BPM</label><input type="number" id="bpm" min="40" max="220" value="75">
       <button class="btn" id="tapBtn" type="button">טאפ <kbd>T</kbd></button>
       <span class="small">קצב לפעימה, לסטרובו ולמחזור הביטלס</span>
     </div>
@@ -137,6 +137,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   // Change TOPIC to a new random string if you ever want a fresh channel.
   const TOPIC = "magicalband-lights-7q4xk2v9";
   const BASE = "https://ntfy.sh/" + TOPIC;
+  const STROBE_MIN_PERIOD = 400; // ms between strobe flashes, i.e. no more than 2.5 flashes a second
   const LEAD_MS = 500;  // every cue is scheduled this far ahead, so all phones switch together despite network lag
 
   // ---- Only the band drives the lights. The topic is public, so every cue is signed with the admin's private key
@@ -177,18 +178,19 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   ];
 
   // ---- The light engine: a cue + the clock decide the colour, so every phone computes the same frame.
-  let cue = { fx: "black", c: "#000000", bpm: 120, at: 0 };
+  let cue = { fx: "black", c: "#000000", bpm: 75, at: 0 };
 
   function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
   function scale(h, k) { const [r, g, b] = hexToRgb(h); return `rgb(${r * k | 0},${g * k | 0},${b * k | 0})`; }
   function frame(q, now) {
     if (now < q.at) return null;                      // not yet: keep the previous cue on screen
-    const t = now - q.at, beat = 60000 / (q.bpm || 120);
+    const t = now - q.at, beat = 60000 / (q.bpm || 75);
     switch (q.fx) {
       case "black": return "#000";
       case "solid": return q.c;
       case "pulse": { const p = (t % beat) / beat; return scale(q.c, Math.max(.12, 1 - p * 1.1)); }
-      case "strobe": return (t % (beat / 2)) < 45 ? "#fff" : "#000";
+      // At most 2.5 flashes a second whatever the tempo: faster flashing of many screens at once can trigger photosensitive seizures.
+      case "strobe": { const period = Math.max(beat / 2, STROBE_MIN_PERIOD); return (t % period) < 45 ? "#fff" : "#000"; }
       case "cycle": return BEATLES_CYCLE[Math.floor(t / beat) % BEATLES_CYCLE.length];
       case "rainbow": return `hsl(${(t / 40) % 360} 100% 55%)`;
       case "candle": {
@@ -203,7 +205,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   function take(q) {
     if (!q || typeof q.fx !== "string" || typeof q.at !== "number") return;
     if (q.c && !/^#[0-9a-f]{6}$/i.test(q.c)) return;
-    q.bpm = Math.min(240, Math.max(30, +q.bpm || 120));
+    q.bpm = Math.min(240, Math.max(30, +q.bpm || 75));
     pending.push(q); pending.sort((a, b) => a.at - b.at);
   }
   function current(now) {
@@ -257,7 +259,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   ["light", "gate", "hint", "status"].forEach((id) => $(id).hidden = true);
   $("desk").hidden = false;
 
-  const state = { c: PALETTE[0].c, fx: "solid", bpm: 120 };
+  const state = { c: PALETTE[0].c, fx: "solid", bpm: 75 };
   const audienceUrl = location.href.split("#")[0];
 
   // The admin code is the private key as base64 JSON; it never leaves this computer.
@@ -331,7 +333,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   $("blackBtn").addEventListener("click", () => send("black"));
 
   // tempo
-  $("bpm").addEventListener("change", (e) => { state.bpm = Math.min(220, Math.max(40, +e.target.value || 120)); if (["pulse", "strobe", "cycle"].includes(state.fx)) send(); });
+  $("bpm").addEventListener("change", (e) => { state.bpm = Math.min(220, Math.max(40, +e.target.value || 75)); if (["pulse", "strobe", "cycle"].includes(state.fx)) send(); });
   let taps = [];
   function tap() {
     const now = performance.now();
