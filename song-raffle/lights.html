@@ -80,8 +80,18 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
 <main id="desk" hidden>
   <header>
     <h1>שולחן <span>אורות קהל</span></h1>
-    <span id="sendState" class="small">מוכן</span>
+    <span><span id="sendState" class="small">מוכן</span> <button class="btn" id="logoutBtn" type="button" hidden style="padding:4px 10px;font-size:.8rem">יציאה מהמחשב הזה</button></span>
   </header>
+
+  <section class="panel" id="lockPanel">
+    <h2>כניסת אדמין</h2>
+    <p class="small" style="margin:0">רק מי שיש לו את קוד האדמין יכול לשלוח צבעים לקהל. הטלפונים מתעלמים מכל צבע שלא נשלח עם הקוד. מדביקים אותו פעם אחת, והמחשב הזה זוכר אותו.</p>
+    <div class="row">
+      <input type="password" id="adminCode" placeholder="קוד האדמין" autocomplete="off" style="flex:1;min-width:0;background:var(--stage);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;font:inherit;direction:ltr">
+      <button class="btn" id="adminBtn" type="button" style="background:var(--spot);color:var(--spot-ink);font-weight:800">כניסה</button>
+    </div>
+    <span class="small" id="adminMsg"></span>
+  </section>
 
   <section class="panel">
     <h2>מה רואים עכשיו אצל הקהל</h2>
@@ -128,6 +138,22 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   const TOPIC = "magicalband-lights-7q4xk2v9";
   const BASE = "https://ntfy.sh/" + TOPIC;
   const LEAD_MS = 500;  // every cue is scheduled this far ahead, so all phones switch together despite network lag
+
+  // ---- Only the band drives the lights. The topic is public, so every cue is signed with the admin's private key
+  // (pasted once on the desk) and phones act only on cues that verify against this public key.
+  const ADMIN_PUBLIC_KEY = {"kty": "EC", "crv": "P-256", "x": "WUQxoziMJALXoWnuB7yU_EQaTjDCyaviNcrZpnVDpDk", "y": "1i9KwQHqZzhwP4VOnSZ6Wkfr_R4UcxocLFQVS7v4cN4"};
+  const ECDSA = { name: "ECDSA", namedCurve: "P-256" }, SIGN = { name: "ECDSA", hash: "SHA-256" };
+  const enc = (t) => new TextEncoder().encode(t);
+  const toB64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const verifyKey = crypto.subtle.importKey("jwk", ADMIN_PUBLIC_KEY, ECDSA, false, ["verify"]);
+  async function verified(raw) {
+    const o = JSON.parse(raw);
+    if (typeof o.p !== "string" || typeof o.s !== "string") return null;
+    if (!(await crypto.subtle.verify(SIGN, await verifyKey, fromB64(o.s), enc(o.p)))) return null;
+    const q = JSON.parse(o.p);
+    return typeof q.at === "number" && q.at < Date.now() + 60000 ? q : null;
+  }
 
   const PALETTE = [
     { name: "צוללת צהובה", c: "#ffd400" },
@@ -205,7 +231,7 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
       es.onopen = () => { status.textContent = "● מחובר"; };
       es.onerror = () => { status.textContent = "○ מתחבר מחדש…"; };
       es.onmessage = (e) => {
-        try { const m = JSON.parse(e.data); if (m.event === "message") take(JSON.parse(m.message)); } catch {}
+        try { const m = JSON.parse(e.data); if (m.event === "message") verified(m.message).then(take, () => {}); } catch {}
       };
     }
 
@@ -234,14 +260,45 @@ kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;fo
   const state = { c: PALETTE[0].c, fx: "solid", bpm: 120 };
   const audienceUrl = location.href.split("#")[0];
 
+  // The admin code is the private key as base64 JSON; it never leaves this computer.
+  const KEY_STORE = "lights-admin-code";
+  let signKey = null;
+  async function useCode(code) {
+    const jwk = JSON.parse(atob(code.trim()));
+    const k = await crypto.subtle.importKey("jwk", jwk, ECDSA, false, ["sign"]);
+    const probe = await crypto.subtle.sign(SIGN, k, enc("check"));
+    if (!(await crypto.subtle.verify(SIGN, await verifyKey, probe, enc("check")))) throw new Error("wrong key");
+    signKey = k;
+    $("lockPanel").hidden = true;
+    $("logoutBtn").hidden = false;
+    $("sendState").textContent = "מוכן";
+  }
+  $("adminBtn").addEventListener("click", async () => {
+    try {
+      await useCode($("adminCode").value);
+      try { localStorage.setItem(KEY_STORE, $("adminCode").value.trim()); } catch {}
+      $("adminCode").value = "";
+    } catch { $("adminMsg").textContent = "הקוד לא נכון. בדקו שהעתקתם את כולו."; }
+  });
+  $("logoutBtn").addEventListener("click", () => {
+    try { localStorage.removeItem(KEY_STORE); } catch {}
+    signKey = null;
+    $("lockPanel").hidden = false;
+    $("logoutBtn").hidden = true;
+  });
+  try { const saved = localStorage.getItem(KEY_STORE); if (saved) useCode(saved).catch(() => {}); } catch {}
+
   let lastSend = 0;
   async function send(fx) {
+    if (!signKey) { $("sendState").textContent = "🔒 צריך להיכנס עם קוד האדמין"; $("lockPanel").hidden = false; return; }
     const q = { fx: fx || state.fx, c: state.c, bpm: state.bpm, at: Date.now() + LEAD_MS };
     take({ ...q });                                   // the preview follows the same clock as the phones
     $("sendState").textContent = "שולח…";
     lastSend = Date.now();
     try {
-      const r = await fetch(BASE, { method: "POST", body: JSON.stringify(q) });
+      const p = JSON.stringify(q);
+      const sig = toB64(await crypto.subtle.sign(SIGN, signKey, enc(p)));
+      const r = await fetch(BASE, { method: "POST", body: JSON.stringify({ p, s: sig }) });
       $("sendState").textContent = r.ok ? "✓ נשלח לקהל" : (r.status === 429 ? "⚠ יותר מדי שליחות, חכו כמה שניות" : "⚠ השליחה נכשלה (" + r.status + ")");
     } catch { $("sendState").textContent = "⚠ אין חיבור לאינטרנט"; }
   }
