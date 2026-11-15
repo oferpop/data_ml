@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Magical Band · אורות הקהל</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@700&family=Assistant:wght@400;600;800&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Two views in one file: the audience screen (default) and the band's control desk (#control). */
+:root{
+  --stage:#170f2b; --panel:#21173a; --line:#3d2f5c; --spot:#ffc94a; --spot-ink:#2a1600;
+  --ink:#f6eedf; --muted:#b5a6c8;
+  --font-display:"Karantina","Assistant",sans-serif; --font-body:"Assistant","Segoe UI",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:#000;color:var(--ink);font-family:var(--font-body)}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--spot);outline-offset:2px}
+
+/* ---------- Audience ---------- */
+#light{position:fixed;inset:0;background:#000}
+#gate{position:fixed;inset:0;display:grid;place-content:center;gap:18px;text-align:center;padding:24px;
+  background:radial-gradient(circle at 50% 30%,#3a2357,var(--stage) 70%)}
+#gate h1{font-family:var(--font-display);font-size:3.4rem;line-height:1;margin:0}
+#gate h1 span{color:var(--spot)}
+#gate p{margin:0;color:var(--muted);font-size:1.1rem;max-width:22em}
+.big{background:var(--spot);color:var(--spot-ink);border:0;border-radius:999px;padding:18px 36px;font-size:1.5rem;font-weight:800;
+  box-shadow:0 0 40px rgba(255,201,74,.45)}
+#hint{position:fixed;inset-inline:0;bottom:max(18px,env(safe-area-inset-bottom));text-align:center;color:rgba(255,255,255,.55);font-size:1rem;
+  pointer-events:none;transition:opacity .6s}
+#status{position:fixed;top:max(10px,env(safe-area-inset-top));inset-inline-start:12px;font-size:.8rem;color:rgba(255,255,255,.4);pointer-events:none}
+
+/* ---------- Control desk ---------- */
+body.control{background:var(--stage);overflow:auto;height:auto}
+#desk{max-width:980px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-left)) 40px;display:grid;gap:16px}
+#desk header{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+#desk h1{font-family:var(--font-display);font-size:2.6rem;margin:0;line-height:1}
+#desk h1 span{color:var(--spot)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:grid;gap:12px}
+.panel h2{margin:0;font-size:1rem;color:var(--muted);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.sw{border:2px solid transparent;border-radius:12px;height:64px;color:#000;font-weight:800;text-shadow:0 0 6px rgba(255,255,255,.6)}
+.sw[aria-pressed="true"]{border-color:#fff;box-shadow:0 0 0 3px var(--spot)}
+.fx{background:var(--stage);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 8px;font-weight:700}
+.fx[aria-pressed="true"]{background:var(--spot);color:var(--spot-ink);border-color:var(--spot)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.row input[type=number]{width:80px;background:var(--stage);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+.row input[type=color]{width:56px;height:44px;border:0;background:none;padding:0}
+.btn{background:var(--stage);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:9px 14px}
+.btn.black{background:#000;border-color:#555;font-weight:800}
+#preview{height:90px;border-radius:12px;border:1px solid var(--line);background:#000}
+#qrWrap{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#qr{background:#fff;padding:10px;border-radius:12px;line-height:0}
+#audUrl{direction:ltr;font-size:.85rem;color:var(--muted);word-break:break-all}
+.small{font-size:.85rem;color:var(--muted)}
+#sendState{font-size:.85rem}
+kbd{border:1px solid var(--line);border-radius:4px;padding:0 5px;font:inherit;font-size:.75rem;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- Audience -->
+<div id="light"></div>
+<div id="status"></div>
+<div id="hint"></div>
+<section id="gate">
+  <h1>Magical <span>Band</span></h1>
+  <p>הטלפון שלכם הוא חלק מהמופע. לחצו, הרימו את המסך מול הבמה, והאורות יגיעו מהלהקה.</p>
+  <div><button class="big" id="joinBtn" type="button">✨ להדליק אותי</button></div>
+  <p class="small">כדאי להגביר בהירות מסך למקסימום</p>
+</section>
+
+<!-- Control desk -->
+<main id="desk" hidden>
+  <header>
+    <h1>שולחן <span>אורות קהל</span></h1>
+    <span id="sendState" class="small">מוכן</span>
+  </header>
+
+  <section class="panel">
+    <h2>מה רואים עכשיו אצל הקהל</h2>
+    <div id="preview"></div>
+    <div class="row">
+      <button class="btn black" id="blackBtn" type="button">⬛ האפלה <kbd>B</kbd></button>
+      <span class="small" id="lagNote">כל שינוי מגיע לכל הטלפונים באותו רגע, חצי שנייה אחרי הלחיצה.</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>צבע</h2>
+    <div class="grid" id="swatches"></div>
+    <div class="row"><label class="small" for="custom">צבע חופשי</label><input type="color" id="custom" value="#ff3fa4"></div>
+  </section>
+
+  <section class="panel">
+    <h2>אפקט</h2>
+    <div class="grid" id="effects"></div>
+    <div class="row">
+      <label class="small" for="bpm">BPM</label><input type="number" id="bpm" min="40" max="220" value="120">
+      <button class="btn" id="tapBtn" type="button">טאפ <kbd>T</kbd></button>
+      <span class="small">קצב לפעימה, לסטרובו ולמחזור הביטלס</span>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>קישור לקהל</h2>
+    <div id="qrWrap">
+      <div id="qr"></div>
+      <div style="display:grid;gap:8px">
+        <div id="audUrl"></div>
+        <div class="row"><button class="btn" id="copyBtn" type="button">העתקת הקישור</button><button class="btn" id="bigQrBtn" type="button">QR במסך מלא</button></div>
+        <span class="small">הקהל לא צריך להוריד אפליקציה. סורקים, לוחצים "להדליק אותי", וזהו.</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  // ---- Shared channel: a public ntfy.sh topic. Phones only listen; the desk publishes.
+  // Change TOPIC to a new random string if you ever want a fresh channel.
+  const TOPIC = "magicalband-lights-7q4xk2v9";
+  const BASE = "https://ntfy.sh/" + TOPIC;
+  const LEAD_MS = 500;  // every cue is scheduled this far ahead, so all phones switch together despite network lag
+
+  const PALETTE = [
+    { name: "צוללת צהובה", c: "#ffd400" },
+    { name: "סרג'נט פפר", c: "#ff3fa4" },
+    { name: "שדות תות", c: "#e8102e" },
+    { name: "שמיים של לוסי", c: "#6a4cff" },
+    { name: "Here Comes the Sun", c: "#ff8a00" },
+    { name: "Let It Be", c: "#ffffff" },
+    { name: "Octopus's Garden", c: "#00c2b8" },
+    { name: "Blue Jay Way", c: "#1e6bff" },
+    { name: "Apple", c: "#38d430" },
+  ];
+  const BEATLES_CYCLE = ["#ffd400", "#ff3fa4", "#1e6bff", "#38d430", "#e8102e", "#ff8a00"];
+  const EFFECTS = [
+    { id: "solid", name: "קבוע" },
+    { id: "pulse", name: "פעימה על הביט" },
+    { id: "strobe", name: "סטרובו" },
+    { id: "cycle", name: "מחזור ביטלס" },
+    { id: "rainbow", name: "קשת איטית" },
+    { id: "candle", name: "מצית (בלדה)" },
+  ];
+
+  // ---- The light engine: a cue + the clock decide the colour, so every phone computes the same frame.
+  let cue = { fx: "black", c: "#000000", bpm: 120, at: 0 };
+
+  function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  function scale(h, k) { const [r, g, b] = hexToRgb(h); return `rgb(${r * k | 0},${g * k | 0},${b * k | 0})`; }
+  function frame(q, now) {
+    if (now < q.at) return null;                      // not yet: keep the previous cue on screen
+    const t = now - q.at, beat = 60000 / (q.bpm || 120);
+    switch (q.fx) {
+      case "black": return "#000";
+      case "solid": return q.c;
+      case "pulse": { const p = (t % beat) / beat; return scale(q.c, Math.max(.12, 1 - p * 1.1)); }
+      case "strobe": return (t % (beat / 2)) < 45 ? "#fff" : "#000";
+      case "cycle": return BEATLES_CYCLE[Math.floor(t / beat) % BEATLES_CYCLE.length];
+      case "rainbow": return `hsl(${(t / 40) % 360} 100% 55%)`;
+      case "candle": {
+        const f = .78 + .12 * Math.sin(t / 130) + .1 * Math.sin(t / 47 + 1.3);
+        return scale("#ff9a2e", Math.min(1, f));
+      }
+    }
+    return "#000";
+  }
+
+  let pending = [];   // cues scheduled for the near future
+  function take(q) {
+    if (!q || typeof q.fx !== "string" || typeof q.at !== "number") return;
+    if (q.c && !/^#[0-9a-f]{6}$/i.test(q.c)) return;
+    q.bpm = Math.min(240, Math.max(30, +q.bpm || 120));
+    pending.push(q); pending.sort((a, b) => a.at - b.at);
+  }
+  function current(now) {
+    while (pending.length && pending[0].at <= now) cue = pending.shift();
+    return frame(cue, now) || "#000";
+  }
+
+  const isControl = location.hash === "#control";
+  const $ = (id) => document.getElementById(id);
+
+  // ================= Audience =================
+  if (!isControl) {
+    const light = $("light"), hint = $("hint"), status = $("status");
+    let wake = null, es = null, joined = false;
+
+    async function keepAwake() {
+      try { wake = await navigator.wakeLock?.request("screen"); } catch {}
+    }
+    document.addEventListener("visibilitychange", () => { if (joined && document.visibilityState === "visible") { keepAwake(); connect(); } });
+
+    function connect() {
+      if (es && es.readyState !== 2) return;
+      // since=10m: a phone that joins mid-show catches the cue that is already running.
+      es = new EventSource(BASE + "/sse?since=10m");
+      es.onopen = () => { status.textContent = "● מחובר"; };
+      es.onerror = () => { status.textContent = "○ מתחבר מחדש…"; };
+      es.onmessage = (e) => {
+        try { const m = JSON.parse(e.data); if (m.event === "message") take(JSON.parse(m.message)); } catch {}
+      };
+    }
+
+    function loop() {
+      const col = current(Date.now());
+      light.style.background = col;
+      hint.style.opacity = cue.fx === "black" ? 1 : 0;
+      requestAnimationFrame(loop);
+    }
+
+    $("joinBtn").addEventListener("click", async () => {
+      joined = true;
+      $("gate").hidden = true;
+      hint.textContent = "הרימו את הטלפון מול הבמה ✨ האורות יגיעו מהלהקה";
+      try { await document.documentElement.requestFullscreen?.(); } catch {}
+      keepAwake(); connect(); loop();
+    });
+    return;
+  }
+
+  // ================= Control desk =================
+  document.body.classList.add("control");
+  ["light", "gate", "hint", "status"].forEach((id) => $(id).hidden = true);
+  $("desk").hidden = false;
+
+  const state = { c: PALETTE[0].c, fx: "solid", bpm: 120 };
+  const audienceUrl = location.href.split("#")[0];
+
+  let lastSend = 0;
+  async function send(fx) {
+    const q = { fx: fx || state.fx, c: state.c, bpm: state.bpm, at: Date.now() + LEAD_MS };
+    take({ ...q });                                   // the preview follows the same clock as the phones
+    $("sendState").textContent = "שולח…";
+    lastSend = Date.now();
+    try {
+      const r = await fetch(BASE, { method: "POST", body: JSON.stringify(q) });
+      $("sendState").textContent = r.ok ? "✓ נשלח לקהל" : (r.status === 429 ? "⚠ יותר מדי שליחות, חכו כמה שניות" : "⚠ השליחה נכשלה (" + r.status + ")");
+    } catch { $("sendState").textContent = "⚠ אין חיבור לאינטרנט"; }
+  }
+
+  // swatches
+  const sw = $("swatches");
+  PALETTE.forEach((p) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "sw"; b.textContent = p.name; b.style.background = p.c;
+    b.dataset.c = p.c;
+    b.addEventListener("click", () => { state.c = p.c; if (state.fx === "cycle" || state.fx === "rainbow" || state.fx === "candle" || state.fx === "strobe") state.fx = "solid"; mark(); send(); });
+    sw.append(b);
+  });
+  $("custom").addEventListener("change", (e) => { state.c = e.target.value; if (!["solid", "pulse"].includes(state.fx)) state.fx = "solid"; mark(); send(); });
+
+  // effects
+  const fxBox = $("effects");
+  EFFECTS.forEach((f) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "fx"; b.textContent = f.name; b.dataset.fx = f.id;
+    b.addEventListener("click", () => { state.fx = f.id; mark(); send(); });
+    fxBox.append(b);
+  });
+  function mark() {
+    sw.querySelectorAll(".sw").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.c === state.c && ["solid", "pulse"].includes(state.fx))));
+    fxBox.querySelectorAll(".fx").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.fx === state.fx)));
+  }
+  mark();
+
+  $("blackBtn").addEventListener("click", () => send("black"));
+
+  // tempo
+  $("bpm").addEventListener("change", (e) => { state.bpm = Math.min(220, Math.max(40, +e.target.value || 120)); if (["pulse", "strobe", "cycle"].includes(state.fx)) send(); });
+  let taps = [];
+  function tap() {
+    const now = performance.now();
+    taps = taps.filter((t) => now - t < 2500); taps.push(now);
+    if (taps.length >= 3) {
+      const gaps = taps.slice(1).map((t, i) => t - taps[i]);
+      state.bpm = Math.round(60000 / (gaps.reduce((a, b) => a + b) / gaps.length));
+      $("bpm").value = state.bpm;
+    }
+    // re-anchor on each tap once tempo is known, so the pulse lands on the band's beat
+    if (taps.length >= 4 && ["pulse", "strobe", "cycle"].includes(state.fx) && Date.now() - lastSend > 1200) send();
+  }
+  $("tapBtn").addEventListener("click", tap);
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT") return;
+    if (e.key === "b" || e.key === "B") send("black");
+    if (e.key === "t" || e.key === "T") tap();
+  });
+
+  // audience link + QR
+  $("audUrl").textContent = audienceUrl;
+  if (window.QRCode) new QRCode($("qr"), { text: audienceUrl, width: 150, height: 150 });
+  $("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(audienceUrl); $("copyBtn").textContent = "✓ הועתק"; } catch { $("copyBtn").textContent = "לא הצלחתי להעתיק"; }
+  });
+  $("bigQrBtn").addEventListener("click", () => {
+    const w = document.createElement("div");
+    w.style.cssText = "position:fixed;inset:0;background:#fff;display:grid;place-content:center;gap:16px;z-index:9;cursor:pointer;text-align:center;color:#000;font:800 2rem Assistant,sans-serif";
+    const q = document.createElement("div");
+    w.append(q, Object.assign(document.createElement("div"), { textContent: "סרקו והדליקו את הטלפון ✨" }));
+    document.body.append(w);
+    if (window.QRCode) new QRCode(q, { text: audienceUrl, width: Math.min(innerWidth, innerHeight) * .7, height: Math.min(innerWidth, innerHeight) * .7 });
+    w.addEventListener("click", () => w.remove());
+  });
+
+  // preview loop
+  (function loop() { $("preview").style.background = current(Date.now()); requestAnimationFrame(loop); })();
+})();
+</script>
+</body>
+</html>
